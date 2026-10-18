@@ -26,6 +26,7 @@ from antlr4.tree.Tree import ParseTree
 from . import islands as isl
 from .generated.MiniPlsqlLexer import MiniPlsqlLexer as L
 from .generated.MiniPlsqlParser import MiniPlsqlParser as P
+from .catalog import Catalog, UnknownTable, cache_key_for
 from .islands import Equality, TableRef, norm
 from .parsing import ParseResult
 
@@ -522,7 +523,8 @@ def match_row_loop(cx: _Ctx, loop: P.BasicLoopStatementContext, lookups: dict) -
         excluded += [(a, reason) for a in BULK_ALTS]
 
     # --- SET_BASED uygulanabilirliği
-    set_reason = _set_based_obstacle(cx, body, dml, upsert_insert, cur, scope, lookups, bulk_ok)
+    set_reason = _set_based_obstacle(cx, body, body_stmts, record, row_locals, dml, upsert_insert,
+                                     cur, scope, lookups, bulk_ok)
     if set_reason:
         excluded.append((SET_BASED, set_reason))
 
@@ -552,11 +554,35 @@ def match_row_loop(cx: _Ctx, loop: P.BasicLoopStatementContext, lookups: dict) -
     return site
 
 
-def _set_based_obstacle(cx, body: _Body, dml: DmlInfo, ins: DmlInfo | None,
+def _set_based_obstacle(cx, body: _Body, body_stmts, record: str, row_locals: tuple[str, ...],
+                        dml: DmlInfo, ins: DmlInfo | None,
                         cur: P.CursorDeclarationContext, scope: Scope, lookups: dict,
                         bulk_ok: bool) -> str | None:
     if not bulk_ok:
         return "gövde, yazdığı tabloyu okuyor"
+    # Kayıt bütün olarak (alan erişimi olmadan) kullanılıyorsa SQL kaynağına çevrilemez.
+    body_toks = [t for st in body_stmts for t in cx.toks(st)]
+    for i, t in enumerate(body_toks):
+        if isl.is_name(t) and norm(t.text) == record and (i == 0 or body_toks[i - 1].type != L.DOT)                 and (i + 1 == len(body_toks) or body_toks[i + 1].type != L.DOT):
+            return f"kayıt `{record}` bütün olarak kullanılıyor"
+    # Döngüler arası taşınan değer: satır-yerel bir değişken, bu yinelemede atanmadan okunuyor.
+    assigned: set[str] = set()
+    for step, ctx in _prelude_contexts(body):
+        reads = isl.referenced_names(cx.toks(ctx)) & set(row_locals)
+        carried = reads - assigned
+        if carried:
+            return f"döngüler arası bağımlılık: {', '.join(sorted(carried))} atanmadan önce okunuyor"
+        assigned |= set(step.target.split(","))
+    # İfadeler `FROM (imleç sorgusu) px_src` içine taşınınca çıplak değişken adları imleç kolonlarına çözülebilir.
+    binds = _unqualified_names(body_toks) & set(scope.variables)
+    binds -= {record, *row_locals, *body.counters}
+    if binds:
+        cols = cursor_columns(cx.toks(cur.selectQuery()))
+        if cols is None:
+            return f"imleç kolonları belirlenemedi; değişkenler ({', '.join(sorted(binds))}) çakışabilir"
+        clash = binds & cols
+        if clash:
+            return f"değişken adı imleç kolonuyla çakışıyor: {', '.join(sorted(clash))}"
     qtoks = cx.toks(cur.selectQuery())
     if isl.find_top_level(qtoks, lambda t: t.type == L.FOR) >= 0:
         return "imleç sorgusu FOR UPDATE içeriyor"
@@ -571,6 +597,8 @@ def _set_based_obstacle(cx, body: _Body, dml: DmlInfo, ins: DmlInfo | None,
             return f"atama yerel alt programı çağırıyor (SQL'den çağrılamaz): {cx.text(a)!r}"
 
     if body.shape == "UPSERT":
+        if body.counters:
+            return "upsert gövdesinde sayaç var (MERGE etkilenen satır sayısı FETCH sayısına eşit değil)"
         if dml.set_pairs is None or dml.where is None:
             return "upsert UPDATE'i `SET k = ifade ... WHERE anahtar = ifade` biçiminde değil"
         if ins.insert_columns is None:
@@ -592,6 +620,52 @@ def _set_based_obstacle(cx, body: _Body, dml: DmlInfo, ins: DmlInfo | None,
     return f"{dml.kind} için küme tabanlı dönüşüm desteklenmiyor"
 
 
+def _unqualified_names(toks: list) -> set[str]:
+    """Nokta ile nitelenmemiş, fonksiyon çağrısı olmayan adlar."""
+    names = set()
+    for i, t in enumerate(toks):
+        if not isl.is_name(t) or (i > 0 and toks[i - 1].type == L.DOT):
+            continue
+        nxt = toks[i + 1] if i + 1 < len(toks) else None
+        if nxt is not None and nxt.type in (L.DOT, L.LPAREN):
+            continue
+        names.add(norm(t.text))
+    return names
+
+
+def cursor_columns(qtoks: list) -> set[str] | None:
+    """İmleç sorgusunun SELECT listesindeki kolon adları; `*`, WITH vb. nedeniyle belirlenemezse None."""
+    if not qtoks or qtoks[0].type != L.SELECT:
+        return None
+    end = isl.find_top_level(qtoks, lambda t: t.type == L.FROM)
+    if end < 0:
+        return None
+    items = qtoks[1:end]
+    if items and items[0].text.upper() in ("DISTINCT", "UNIQUE", "ALL"):
+        items = items[1:]
+    cols = set()
+    for item in isl.split_top_level(items, L.COMMA):
+        if not item or any(t.type == L.STAR for t in item):
+            return None
+        last = item[-1]
+        if not isl.is_name(last):
+            continue                                  # adsız ifade: r.alan ile erişilemez
+        if len(item) == 1 or item[-2].type in (L.AS, L.DOT, L.RPAREN) or isl.is_name(item[-2]):
+            cols.add(norm(last.text))
+    return cols
+
+
+def _prelude_contexts(body: _Body):
+    """Prelude adımları ve okunan kısımlarının bağlamları (atamada sağ taraf, aramada WHERE)."""
+    assigns = iter(body.prelude_assigns)
+    lookups = iter(body.prelude_lookups)
+    for step in body.prelude:
+        if step.kind == "ASSIGN":
+            yield step, next(assigns).expression()
+        else:
+            yield step, next(lookups).sqlTail()
+
+
 def _merge_key_conflict(dml: DmlInfo) -> str | None:
     keys = {e.column for e in dml.where}
     clash = keys & {c for c, _ in dml.set_pairs}
@@ -600,9 +674,22 @@ def _merge_key_conflict(dml: DmlInfo) -> str | None:
     return None
 
 
+def _cache_key_obstacle(catalog: "Catalog", info: LookupInfo) -> str | None:
+    try:
+        col = catalog.columns(info.table.name).get(info.key_column)
+    except UnknownTable:
+        return f"katalogda tablo yok: {info.table.name}"
+    if col is None:
+        return f"katalogda kolon yok: {info.table.name}.{info.key_column}"
+    if cache_key_for(col) is None:
+        return f"anahtar tipi ({col.data_type}) Associative Array indeksine anlam kaybı olmadan eşlenemiyor"
+    return None
+
+
 # ================================================================ analiz giriş noktası
 
-def find_sites(result: ParseResult) -> SiteAnalysis:
+def find_sites(result: ParseResult, catalog: "Catalog | None" = None) -> SiteAnalysis:
+    """Siteleri bulur. Katalog verilirse P2 anahtar kolonunun önbelleğe uygunluğu da denetlenir."""
     cx = _Ctx(result)
     tree = result.tree
     rejections: list[Rejection] = []
@@ -623,6 +710,11 @@ def find_sites(result: ParseResult) -> SiteAnalysis:
             rejections.append(Rejection(
                 P2, line, f"`{info.table.name}` blokta değiştiriliyor; önbellek bayatlayabilir"))
             continue
+        if catalog is not None:
+            key_reason = _cache_key_obstacle(catalog, info)
+            if key_reason:
+                rejections.append(Rejection(P2, line, key_reason))
+                continue
         toks = cx.toks(sel)
         lookup_sites[sel] = Site(
             id="", pattern=P2, name=f"{info.table.name}.{info.key_column}",

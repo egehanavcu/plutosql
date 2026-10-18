@@ -330,7 +330,7 @@ primary
     : literal                                                   # literalPrimary
     | identifier STRING_LIT                                     # typedLiteralPrimary   // DATE '2024-01-01'
     | caseExpression                                            # casePrimary
-    | variableRef (PERCENT identifier)?                         # refPrimary            // c%NOTFOUND, SQL%ROWCOUNT
+    | variableRef (PERCENT identifier (LPAREN argumentList RPAREN)?)?  # refPrimary     // c%NOTFOUND, SQL%BULK_ROWCOUNT(i)
     | LPAREN expression RPAREN                                  # parenPrimary
     ;
 
