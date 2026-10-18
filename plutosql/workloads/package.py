@@ -136,3 +136,35 @@ def validate_scripts(pkg: WorkloadPackage) -> None:
         raise ValueError(f"{pkg.name}: block.sql tek bir blok içermeli")
     split_script(pkg.schema_sql)
     split_script(pkg.data_sql)
+
+
+def catalog_from_schema(schema_sql: str):
+    """schema.sql'deki CREATE TABLE deyimlerinden StaticCatalog (veritabanı olmadan site analizi için).
+
+    Desteklenen biçim: her kolon kendi satırında `AD TİP[(..)] [NOT NULL]`; CONSTRAINT satırları atlanır.
+    `CREATE TABLE x AS SELECT * FROM y` kaynağın kolonlarını kopyalar.
+    """
+    import re
+
+    from plutosql.transformer.catalog import StaticCatalog
+
+    tables: dict[str, dict[str, str]] = {}
+    for stmt in split_script(schema_sql):
+        code = "\n".join(l for l in stmt.splitlines() if not l.strip().startswith("--"))
+        m = re.match(r"\s*CREATE\s+TABLE\s+(\w+)\s+AS\s+SELECT\s+\*\s+FROM\s+(\w+)", code, re.I)
+        if m:
+            tables[m.group(1).upper()] = dict(tables[m.group(2).upper()])
+            continue
+        m = re.match(r"\s*CREATE\s+TABLE\s+(\w+)\s*\((.*)\)\s*$", code, re.I | re.S)
+        if not m:
+            continue
+        cols = {}
+        for line in m.group(2).splitlines():
+            line = line.strip().rstrip(",")
+            if not line or line.upper().startswith(("CONSTRAINT", "PRIMARY", "UNIQUE", "FOREIGN")):
+                continue
+            cm = re.match(r"(\w+)\s+(\w+(?:\s*\([^)]*\))?)(\s+NOT\s+NULL)?", line, re.I)
+            if cm:
+                cols[cm.group(1).upper()] = cm.group(2) + (" NOT NULL" if cm.group(3) else "")
+        tables[m.group(1).upper()] = cols
+    return StaticCatalog(tables)

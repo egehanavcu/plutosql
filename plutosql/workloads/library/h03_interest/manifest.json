@@ -1,0 +1,10 @@
+{
+  "name": "h03_interest",
+  "prefix": "H03",
+  "description": "Günlük faiz tahakkuku: hesap → ürün faizi (metin anahtar) + şube stopajı → tahakkuk; hesaplara UPDATE (hesap tablosu hem kaynak hem hedef)",
+  "binds": {},
+  "mutable": ["H03_ACCRUALS", "H03_ACCOUNTS"],
+  "immutable": ["H03_PRODUCTS", "H03_BRANCHES"],
+  "seeded": {"H03_ACCOUNTS": "H03_ACCOUNTS_SEED"},
+  "spec": {"handwritten": true, "expected_canonical_size": 85}
+}

@@ -1,0 +1,10 @@
+{
+  "name": "h01_invoicing",
+  "prefix": "H01",
+  "description": "Fatura kesimi: sipariş satırı → ürün fiyatı, müşteri iskontosu, KDV araması → fatura satırı; müşteri bakiyesi upsert",
+  "binds": {},
+  "mutable": ["H01_INVOICE_LINES", "H01_CUSTOMER_BALANCE"],
+  "immutable": ["H01_PRODUCTS", "H01_CUSTOMERS", "H01_TAX_RATES", "H01_ORDER_LINES"],
+  "seeded": {"H01_CUSTOMER_BALANCE": "H01_CUSTOMER_BALANCE_SEED"},
+  "spec": {"handwritten": true, "expected_canonical_size": 165}
+}

@@ -62,3 +62,30 @@ def test_library_matches_specs():
 def test_invalid_specs_rejected(bad):
     with pytest.raises(ValueError):
         generate(bad)
+
+
+# ---------------------------------------------------------------- tüm kütüphane (üretilmiş + elle yazılmış)
+
+from plutosql.db.scripts import bind_names  # noqa: E402
+from plutosql.workloads.package import catalog_from_schema, validate_scripts  # noqa: E402
+
+
+@pytest.mark.parametrize("name", available())
+def test_every_library_package_is_consistent(name):
+    pkg = WorkloadPackage.load(name)
+    validate_scripts(pkg)
+    analysis = find_sites(parse(pkg.block), catalog_from_schema(pkg.schema_sql))
+    assert analysis.rejections == [], analysis.rejections
+    size = len(SearchSpace(tuple(analysis.sites)).canonical_configs())
+    assert size == pkg.spec["expected_canonical_size"]
+    assert size <= 1000                                            # ADR-004: exhaustive ölçülebilir
+    assert all(len(s.alternatives) == 5 for s in analysis.sites if s.pattern == P1)
+    tables = set(catalog_from_schema(pkg.schema_sql)._tables)
+    assert set(pkg.tables) == tables                                # manifest rolleri şemayla tutarlı
+    assert all(t.startswith(pkg.prefix + "_") for t in tables)
+    assert set().union(*(bind_names(s) for s in split_script(pkg.data_sql))) <= set(pkg.binds)
+
+
+def test_library_has_handwritten_workloads():
+    hand = [n for n in available() if WorkloadPackage.load(n).spec.get("handwritten")]
+    assert len(hand) >= 3

@@ -1,0 +1,10 @@
+{
+  "name": "h02_inventory",
+  "prefix": "H02",
+  "description": "Stok yönetimi: hareket maliyetlendirme → stok seviyesi upsert (bileşik anahtar) → yeniden sipariş; ürün kartı 1. ve 3. aşamada ortak",
+  "binds": {},
+  "mutable": ["H02_MOVEMENT_COSTED", "H02_STOCK_LEVELS", "H02_REORDER_PROPOSALS"],
+  "immutable": ["H02_ITEMS", "H02_WAREHOUSES", "H02_MOVEMENTS"],
+  "seeded": {"H02_STOCK_LEVELS": "H02_STOCK_LEVELS_SEED"},
+  "spec": {"handwritten": true, "expected_canonical_size": 765}
+}

@@ -1,0 +1,10 @@
+{
+  "name": "h04_loyalty",
+  "prefix": "H04",
+  "description": "Sadakat puanı: onaylı POS işlemi → işyeri bonusu + MCC kampanya çarpanı → puan olayı; müşteri bakiyesi upsert",
+  "binds": {},
+  "mutable": ["H04_POINT_EVENTS", "H04_LOYALTY_BALANCE"],
+  "immutable": ["H04_MERCHANTS", "H04_CAMPAIGNS", "H04_POS_TXN"],
+  "seeded": {"H04_LOYALTY_BALANCE": "H04_LOYALTY_BALANCE_SEED"},
+  "spec": {"handwritten": true, "expected_canonical_size": 85}
+}
