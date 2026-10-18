@@ -1,0 +1,56 @@
+{
+  "name": "g07_wide_dense",
+  "prefix": "G07_WIDE_DENSE",
+  "description": "Geniş satırlı büyük referans, yoğun erişim; küçük referans; ardından upsert",
+  "binds": {},
+  "mutable": [
+    "G07_WIDE_DENSE_T1",
+    "G07_WIDE_DENSE_T2"
+  ],
+  "immutable": [
+    "G07_WIDE_DENSE_SRC",
+    "G07_WIDE_DENSE_R1",
+    "G07_WIDE_DENSE_R2"
+  ],
+  "seeded": {
+    "G07_WIDE_DENSE_T2": "G07_WIDE_DENSE_T2_SEED"
+  },
+  "spec": {
+    "name": "g07_wide_dense",
+    "description": "Geniş satırlı büyük referans, yoğun erişim; küçük referans; ardından upsert",
+    "n_src": 20000,
+    "refs": [
+      {
+        "rows": 150000,
+        "spread": 1.0,
+        "key_type": "NUMBER",
+        "pad": 400
+      },
+      {
+        "rows": 20,
+        "spread": 1.0,
+        "key_type": "NUMBER",
+        "pad": 0
+      }
+    ],
+    "stages": [
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0,
+          1
+        ],
+        "selectivity": 100
+      },
+      {
+        "kind": "UPSERT",
+        "lookups": [],
+        "selectivity": 100
+      }
+    ],
+    "n_groups": 200,
+    "seed_fraction": 50,
+    "salt": 0,
+    "expected_canonical_size": 85
+  }
+}

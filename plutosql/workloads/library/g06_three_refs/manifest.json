@@ -1,0 +1,70 @@
+{
+  "name": "g06_three_refs",
+  "prefix": "G06_THREE_REFS",
+  "description": "Üç aşama, üç farklı referans: küçük / orta / büyük seyrek (ortak yok)",
+  "binds": {},
+  "mutable": [
+    "G06_THREE_REFS_T1",
+    "G06_THREE_REFS_T2",
+    "G06_THREE_REFS_T3"
+  ],
+  "immutable": [
+    "G06_THREE_REFS_SRC",
+    "G06_THREE_REFS_R1",
+    "G06_THREE_REFS_R2",
+    "G06_THREE_REFS_R3"
+  ],
+  "seeded": {},
+  "spec": {
+    "name": "g06_three_refs",
+    "description": "Üç aşama, üç farklı referans: küçük / orta / büyük seyrek (ortak yok)",
+    "n_src": 20000,
+    "refs": [
+      {
+        "rows": 50,
+        "spread": 1.0,
+        "key_type": "NUMBER",
+        "pad": 0
+      },
+      {
+        "rows": 5000,
+        "spread": 1.0,
+        "key_type": "NUMBER",
+        "pad": 0
+      },
+      {
+        "rows": 200000,
+        "spread": 0.01,
+        "key_type": "NUMBER",
+        "pad": 100
+      }
+    ],
+    "stages": [
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0
+        ],
+        "selectivity": 100
+      },
+      {
+        "kind": "INSERT",
+        "lookups": [
+          1
+        ],
+        "selectivity": 100
+      },
+      {
+        "kind": "INSERT",
+        "lookups": [
+          2
+        ],
+        "selectivity": 100
+      }
+    ],
+    "n_groups": 200,
+    "seed_fraction": 50,
+    "salt": 0,
+    "expected_canonical_size": 729
+  }
+}

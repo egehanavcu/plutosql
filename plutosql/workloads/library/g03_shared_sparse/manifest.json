@@ -1,0 +1,64 @@
+{
+  "name": "g03_shared_sparse",
+  "prefix": "G03_SHARED_SPARSE",
+  "description": "Ortak büyük seyrek referans + 2. aşamada küçük referans, ardından upsert",
+  "binds": {},
+  "mutable": [
+    "G03_SHARED_SPARSE_T1",
+    "G03_SHARED_SPARSE_T2",
+    "G03_SHARED_SPARSE_T3"
+  ],
+  "immutable": [
+    "G03_SHARED_SPARSE_SRC",
+    "G03_SHARED_SPARSE_R1",
+    "G03_SHARED_SPARSE_R2"
+  ],
+  "seeded": {
+    "G03_SHARED_SPARSE_T3": "G03_SHARED_SPARSE_T3_SEED"
+  },
+  "spec": {
+    "name": "g03_shared_sparse",
+    "description": "Ortak büyük seyrek referans + 2. aşamada küçük referans, ardından upsert",
+    "n_src": 20000,
+    "refs": [
+      {
+        "rows": 200000,
+        "spread": 0.02,
+        "key_type": "NUMBER",
+        "pad": 100
+      },
+      {
+        "rows": 50,
+        "spread": 1.0,
+        "key_type": "NUMBER",
+        "pad": 0
+      }
+    ],
+    "stages": [
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0
+        ],
+        "selectivity": 100
+      },
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0,
+          1
+        ],
+        "selectivity": 50
+      },
+      {
+        "kind": "UPSERT",
+        "lookups": [],
+        "selectivity": 100
+      }
+    ],
+    "n_groups": 200,
+    "seed_fraction": 50,
+    "salt": 0,
+    "expected_canonical_size": 765
+  }
+}

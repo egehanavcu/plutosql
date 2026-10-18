@@ -1,0 +1,56 @@
+{
+  "name": "g04_shared_lowsel",
+  "prefix": "G04_SHARED_LOWSEL",
+  "description": "Ortak referans; 1. aşama düşük seçicilikli (az arama: tek başına önbellek kârsız)",
+  "binds": {},
+  "mutable": [
+    "G04_SHARED_LOWSEL_T1",
+    "G04_SHARED_LOWSEL_T2",
+    "G04_SHARED_LOWSEL_T3"
+  ],
+  "immutable": [
+    "G04_SHARED_LOWSEL_SRC",
+    "G04_SHARED_LOWSEL_R1"
+  ],
+  "seeded": {
+    "G04_SHARED_LOWSEL_T3": "G04_SHARED_LOWSEL_T3_SEED"
+  },
+  "spec": {
+    "name": "g04_shared_lowsel",
+    "description": "Ortak referans; 1. aşama düşük seçicilikli (az arama: tek başına önbellek kârsız)",
+    "n_src": 20000,
+    "refs": [
+      {
+        "rows": 100000,
+        "spread": 0.3,
+        "key_type": "NUMBER",
+        "pad": 60
+      }
+    ],
+    "stages": [
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0
+        ],
+        "selectivity": 5
+      },
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0
+        ],
+        "selectivity": 100
+      },
+      {
+        "kind": "UPSERT",
+        "lookups": [],
+        "selectivity": 100
+      }
+    ],
+    "n_groups": 200,
+    "seed_fraction": 50,
+    "salt": 0,
+    "expected_canonical_size": 405
+  }
+}

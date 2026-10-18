@@ -1,0 +1,57 @@
+{
+  "name": "g05_shared_twopairs",
+  "prefix": "G05_SHARED_TWOPAIRS",
+  "description": "İki ortak referans: R1 ve R2 iki aşamada da aranıyor (iki kuplajlı çift)",
+  "binds": {},
+  "mutable": [
+    "G05_SHARED_TWOPAIRS_T1",
+    "G05_SHARED_TWOPAIRS_T2"
+  ],
+  "immutable": [
+    "G05_SHARED_TWOPAIRS_SRC",
+    "G05_SHARED_TWOPAIRS_R1",
+    "G05_SHARED_TWOPAIRS_R2"
+  ],
+  "seeded": {},
+  "spec": {
+    "name": "g05_shared_twopairs",
+    "description": "İki ortak referans: R1 ve R2 iki aşamada da aranıyor (iki kuplajlı çift)",
+    "n_src": 20000,
+    "refs": [
+      {
+        "rows": 50000,
+        "spread": 0.4,
+        "key_type": "NUMBER",
+        "pad": 40
+      },
+      {
+        "rows": 80000,
+        "spread": 0.1,
+        "key_type": "NUMBER",
+        "pad": 80
+      }
+    ],
+    "stages": [
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0,
+          1
+        ],
+        "selectivity": 100
+      },
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0,
+          1
+        ],
+        "selectivity": 60
+      }
+    ],
+    "n_groups": 200,
+    "seed_fraction": 50,
+    "salt": 0,
+    "expected_canonical_size": 289
+  }
+}

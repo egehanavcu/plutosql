@@ -1,0 +1,56 @@
+{
+  "name": "g08_varchar_keys",
+  "prefix": "G08_VARCHAR_KEYS",
+  "description": "VARCHAR2 anahtarlı referanslar (dizi indeksi metin), ardından upsert",
+  "binds": {},
+  "mutable": [
+    "G08_VARCHAR_KEYS_T1",
+    "G08_VARCHAR_KEYS_T2"
+  ],
+  "immutable": [
+    "G08_VARCHAR_KEYS_SRC",
+    "G08_VARCHAR_KEYS_R1",
+    "G08_VARCHAR_KEYS_R2"
+  ],
+  "seeded": {
+    "G08_VARCHAR_KEYS_T2": "G08_VARCHAR_KEYS_T2_SEED"
+  },
+  "spec": {
+    "name": "g08_varchar_keys",
+    "description": "VARCHAR2 anahtarlı referanslar (dizi indeksi metin), ardından upsert",
+    "n_src": 20000,
+    "refs": [
+      {
+        "rows": 50000,
+        "spread": 0.2,
+        "key_type": "VARCHAR2",
+        "pad": 50
+      },
+      {
+        "rows": 30,
+        "spread": 1.0,
+        "key_type": "VARCHAR2",
+        "pad": 0
+      }
+    ],
+    "stages": [
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0,
+          1
+        ],
+        "selectivity": 100
+      },
+      {
+        "kind": "UPSERT",
+        "lookups": [],
+        "selectivity": 100
+      }
+    ],
+    "n_groups": 200,
+    "seed_fraction": 50,
+    "salt": 0,
+    "expected_canonical_size": 85
+  }
+}

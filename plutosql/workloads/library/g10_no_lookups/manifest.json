@@ -1,0 +1,44 @@
+{
+  "name": "g10_no_lookups",
+  "prefix": "G10_NO_LOOKUPS",
+  "description": "Kontrol: arama yok, yalnızca satır/toplu/küme tabanlı seçimler (3 aşama)",
+  "binds": {},
+  "mutable": [
+    "G10_NO_LOOKUPS_T1",
+    "G10_NO_LOOKUPS_T2",
+    "G10_NO_LOOKUPS_T3"
+  ],
+  "immutable": [
+    "G10_NO_LOOKUPS_SRC"
+  ],
+  "seeded": {
+    "G10_NO_LOOKUPS_T3": "G10_NO_LOOKUPS_T3_SEED"
+  },
+  "spec": {
+    "name": "g10_no_lookups",
+    "description": "Kontrol: arama yok, yalnızca satır/toplu/küme tabanlı seçimler (3 aşama)",
+    "n_src": 20000,
+    "refs": [],
+    "stages": [
+      {
+        "kind": "INSERT",
+        "lookups": [],
+        "selectivity": 100
+      },
+      {
+        "kind": "INSERT",
+        "lookups": [],
+        "selectivity": 50
+      },
+      {
+        "kind": "UPSERT",
+        "lookups": [],
+        "selectivity": 100
+      }
+    ],
+    "n_groups": 200,
+    "seed_fraction": 50,
+    "salt": 0,
+    "expected_canonical_size": 125
+  }
+}

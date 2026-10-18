@@ -1,0 +1,56 @@
+{
+  "name": "g09_scale_60k",
+  "prefix": "G09_SCALE_60K",
+  "description": "g02 yapısı, 3 kat kaynak veri (ölçek etkisi)",
+  "binds": {},
+  "mutable": [
+    "G09_SCALE_60K_T1",
+    "G09_SCALE_60K_T2",
+    "G09_SCALE_60K_T3"
+  ],
+  "immutable": [
+    "G09_SCALE_60K_SRC",
+    "G09_SCALE_60K_R1"
+  ],
+  "seeded": {
+    "G09_SCALE_60K_T3": "G09_SCALE_60K_T3_SEED"
+  },
+  "spec": {
+    "name": "g09_scale_60k",
+    "description": "g02 yapısı, 3 kat kaynak veri (ölçek etkisi)",
+    "n_src": 60000,
+    "refs": [
+      {
+        "rows": 100000,
+        "spread": 0.5,
+        "key_type": "NUMBER",
+        "pad": 60
+      }
+    ],
+    "stages": [
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0
+        ],
+        "selectivity": 100
+      },
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0
+        ],
+        "selectivity": 30
+      },
+      {
+        "kind": "UPSERT",
+        "lookups": [],
+        "selectivity": 100
+      }
+    ],
+    "n_groups": 200,
+    "seed_fraction": 50,
+    "salt": 1,
+    "expected_canonical_size": 405
+  }
+}

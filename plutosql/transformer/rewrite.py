@@ -126,15 +126,42 @@ class _Unit:
         raise NotImplementedError
 
 
+@dataclass
+class _CacheGroup:
+    """Aynı (tablo, anahtar) üzerindeki aktif LOOKUP_CACHE siteleri: tek dizi, tek yükleme.
+
+    Tek üyeli grup eski adlandırmayı (`px_<site>_…`) korur; böylece ortak önbellek yokken üretilen kod
+    ve ölçüm özetleri değişmez. Çok üyeli grup `px_c<n>_…` adlarını kullanır.
+    """
+    members: list[Site]
+    prefix: str
+
+    @property
+    def site(self) -> Site:
+        return self.members[0]
+
+    @property
+    def names(self) -> dict[str, str]:
+        p = self.prefix
+        return {"val": f"{p}_val_t", "map": f"{p}_map", "dup": f"{p}_dup", "row": f"{p}_r"}
+
+    @property
+    def value_columns(self) -> list[str]:
+        cols: list[str] = []
+        for s in self.members:
+            cols += [c for c in s.info.value_columns if c not in cols]
+        return cols
+
+
 class _LookupUnit(_Unit):
-    def __init__(self, site: Site):
-        self.site = site
+    def __init__(self, site: Site, group: _CacheGroup):
+        self.site, self.group = site, group
         self.start, self.stop = site.start_token, site.stop_token
 
     def render(self, w: "_Writer", subst: Mapping[str, str]) -> str:
         info: LookupInfo = self.site.info
         key = w.cache_key(self.site)
-        names = _cache_names(self.site)
+        names = self.group.names
         k = substitute(info.key_expr, subst)
         idx = key.convert(k)
         miss = [f"{k} IS NULL"]
@@ -157,24 +184,24 @@ class _LookupUnit(_Unit):
 class _HostUnit(_Unit):
     """Dönüştürülmemiş bir bölgeyi, içindeki önbelleklerin bildirim ve yüklemesiyle sarar."""
 
-    def __init__(self, start: int, stop: int, caches: list[Site]):
+    def __init__(self, start: int, stop: int, caches: list[_CacheGroup]):
         self.start, self.stop, self.caches = start, stop, caches
 
     def render(self, w: "_Writer", subst: Mapping[str, str]) -> str:
         c = _Code()
         c.add(0, "DECLARE")
-        for site in self.caches:
-            c.extend(1, w.cache_decl(site))
+        for group in self.caches:
+            c.extend(1, w.cache_decl(group))
         c.add(0, "BEGIN")
-        for site in self.caches:
-            c.extend(1, w.cache_load(site))
+        for group in self.caches:
+            c.extend(1, w.cache_load(group))
         c.embed(1, w.render(self.start, self.stop, subst, skip=self), w.column(self.start))
         c.add(0, "END;")
         return c.render(w.column(self.start))
 
 
 class _LoopUnit(_Unit):
-    def __init__(self, site: Site, alternative: str, caches: list[Site]):
+    def __init__(self, site: Site, alternative: str, caches: list[_CacheGroup]):
         self.site, self.alternative, self.caches = site, alternative, caches
         self.start, self.stop = site.start_token, site.stop_token
 
@@ -222,7 +249,7 @@ class _BulkGen:
     satırlar → FORALL ... VALUES OF ile INSERT.
     """
 
-    def __init__(self, w: "_Writer", site: Site, limit: int, caches: list[Site]):
+    def __init__(self, w: "_Writer", site: Site, limit: int, caches: list[_CacheGroup]):
         self.w, self.site, self.limit, self.caches = w, site, limit, caches
         self.info: RowLoopInfo = site.info
         self.parts = _loop_parts(site)
@@ -260,11 +287,11 @@ class _BulkGen:
         if info.shape == "UPSERT":
             c.add(1, f"TYPE {self.ins}_t IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;")
             c.add(1, f"{self.ins} {self.ins}_t;")
-        for site in self.caches:
-            c.extend(1, w.cache_decl(site))
+        for group in self.caches:
+            c.extend(1, w.cache_decl(group))
         c.add(0, "BEGIN")
-        for site in self.caches:
-            c.extend(1, w.cache_load(site))
+        for group in self.caches:
+            c.extend(1, w.cache_load(group))
         c.add(1, f"OPEN {cur};")
         c.add(1, "LOOP")
         c.add(2, f"FETCH {cur} BULK COLLECT INTO {rows} LIMIT {self.limit};")
@@ -428,11 +455,6 @@ def _after_dot(toks: list[Token], t: Token) -> bool:
     return i > 0 and toks[i - 1].type == L.DOT
 
 
-def _cache_names(site: Site) -> dict[str, str]:
-    s = site.id
-    return {"val": f"px_{s}_val_t", "map": f"px_{s}_map", "dup": f"px_{s}_dup", "row": f"px_{s}_r"}
-
-
 # ================================================================ yazıcı
 
 class _Writer:
@@ -460,15 +482,18 @@ class _Writer:
             s for s in self.sites
             if s.pattern == P2 and self.config[s.id] == LOOKUP_CACHE and not space.is_absorbed(self.config, s.id)
         ]
-        units: list[_Unit] = [_LookupUnit(s) for s in active_caches]
+        groups = self._cache_groups(active_caches)
+        units: list[_Unit] = [_LookupUnit(s, g) for g in groups for s in g.members]
 
-        hosted: dict[str, list[Site]] = {}
-        orphan: dict[tuple[int, int], list[Site]] = {}
-        for s in active_caches:
-            if s.parent is not None:
-                hosted.setdefault(s.parent, []).append(s)
+        p1_spans = {(s.start_token, s.stop_token): s.id for s in self.sites if s.pattern == P1}
+        hosted: dict[str, list[_CacheGroup]] = {}
+        orphan: dict[tuple[int, int], list[_CacheGroup]] = {}
+        for g in groups:
+            rng = self._group_range(g)
+            if rng in p1_spans:                                  # tek döngünün içinde: o döngünün bloğu
+                hosted.setdefault(p1_spans[rng], []).append(g)
             else:
-                orphan.setdefault(self._host_range(s), []).append(s)
+                orphan.setdefault(rng, []).append(g)
 
         for s in self.sites:
             if s.pattern != P1:
@@ -485,6 +510,58 @@ class _Writer:
             self._units_at.setdefault(u.start, []).append(u)
         for lst in self._units_at.values():
             lst.sort(key=lambda u: -u.stop)                    # en dıştaki önce
+
+    @staticmethod
+    def _cache_groups(active: list[Site]) -> list[_CacheGroup]:
+        """(tablo, anahtar kolonu) aynı olan aktif önbellekleri gruplar (kaynak sırasıyla)."""
+        by_sig: dict[tuple[str, str], list[Site]] = {}
+        for s in active:
+            by_sig.setdefault((s.info.table.name, s.info.key_column), []).append(s)
+        groups, shared = [], 0
+        for members in by_sig.values():
+            if len(members) == 1:
+                groups.append(_CacheGroup(members, f"px_{members[0].id}"))
+            else:
+                shared += 1
+                groups.append(_CacheGroup(members, f"px_c{shared}"))
+        return groups
+
+    def _member_range(self, site: Site) -> tuple[int, int]:
+        if site.parent is not None:
+            parent = next(s for s in self.sites if s.id == site.parent)
+            return parent.start_token, parent.stop_token
+        return self._host_range(site)
+
+    def _group_range(self, group: _CacheGroup) -> tuple[int, int]:
+        """Grubun bildirim + yükleme bloğunun saracağı deyim aralığı.
+
+        Tek üye: eski davranış (ebeveyn P1 açıklığı ya da en dış döngü). Çok üye: üyelerin aralıklarını
+        kapsayan, en derin ortak deyim listesindeki ardışık deyimler (varsa ilk deyimin etiketi dahil).
+        """
+        ranges = {self._member_range(s) for s in group.members}
+        if len(ranges) == 1:
+            return next(iter(ranges))
+        lists = [self._statement_lists(s.node) for s in group.members]
+        common = [sl for sl in lists[0] if all(sl in other for other in lists[1:])]
+        sl = common[0]                                           # en derin ortak liste
+        stmts = sl.statement()
+        lo = min(next(i for i, st in enumerate(stmts) if st.stop.tokenIndex >= a) for a, _ in ranges)
+        hi = max(max(i for i, st in enumerate(stmts) if st.start.tokenIndex <= b) for _, b in ranges)
+        first = stmts[lo]
+        k = sl.children.index(first)
+        if k > 0 and isinstance(sl.children[k - 1], P.LabelContext):
+            first = sl.children[k - 1]
+        return first.start.tokenIndex, stmts[hi].stop.tokenIndex
+
+    @staticmethod
+    def _statement_lists(node) -> list:
+        """Düğümü içeren deyim listeleri, içten dışa."""
+        out, p = [], node.parentCtx
+        while p is not None:
+            if isinstance(p, P.StatementListContext):
+                out.append(p)
+            p = p.parentCtx
+        return out
 
     def _host_range(self, site: Site) -> tuple[int, int]:
         """P1 dışı bir aramayı içeren en dış döngü deyimi (varsa etiketi dahil)."""
@@ -614,12 +691,12 @@ class _Writer:
             raise RewriteError(f"{site.id}: {info.table.name}.{info.key_column} önbellek anahtarı olamaz")
         return key
 
-    def cache_decl(self, site: Site) -> _Code:
-        info: LookupInfo = site.info
-        key = self.cache_key(site)
-        n = _cache_names(site)
+    def cache_decl(self, group: _CacheGroup) -> _Code:
+        info: LookupInfo = group.site.info
+        key = self.cache_key(group.site)
+        n = group.names
         table = self.spell_ref(info.table.name)
-        fields = ", ".join(f"{self.spell(col)} {table}.{self.spell(col)}%TYPE" for col in info.value_columns)
+        fields = ", ".join(f"{self.spell(col)} {table}.{self.spell(col)}%TYPE" for col in group.value_columns)
         c = _Code()
         c.add(0, f"TYPE {n['val']} IS RECORD ({fields});")
         c.add(0, f"TYPE {n['map']}_t IS TABLE OF {n['val']} INDEX BY {key.index_by};")
@@ -628,15 +705,15 @@ class _Writer:
         c.add(0, f"{n['dup']} {n['dup']}_t;")
         return c
 
-    def cache_load(self, site: Site) -> _Code:
-        info: LookupInfo = site.info
-        key = self.cache_key(site)
-        n = _cache_names(site)
+    def cache_load(self, group: _CacheGroup) -> _Code:
+        info: LookupInfo = group.site.info
+        key = self.cache_key(group.site)
+        n = group.names
         r = n["row"]
         idx = key.convert(f"{r}.px_k")
         key_col = self.spell(info.key_column)
         select = ", ".join([f"{key_col} AS px_k"]
-                           + [f"{self.spell(col)} AS px_v{j}" for j, col in enumerate(info.value_columns, start=1)])
+                           + [f"{self.spell(col)} AS px_v{j}" for j, col in enumerate(group.value_columns, start=1)])
         head = f"FOR {r} IN ("
         pad = " " * len(head)
         c = _Code()
@@ -646,7 +723,7 @@ class _Writer:
         c.add(1, f"IF {n['map']}.EXISTS({idx}) THEN")
         c.add(2, f"{n['dup']}({idx}) := TRUE;")
         c.add(1, "ELSE")
-        for j, col in enumerate(info.value_columns, start=1):
+        for j, col in enumerate(group.value_columns, start=1):
             c.add(2, f"{n['map']}({idx}).{self.spell(col)} := {r}.px_v{j};")
         c.add(1, "END IF;")
         c.add(0, "END LOOP;")

@@ -1,0 +1,56 @@
+{
+  "name": "g02_shared_dense",
+  "prefix": "G02_SHARED_DENSE",
+  "description": "Ortak büyük ve yoğun erişilen referans (2 INSERT aşaması), ardından upsert",
+  "binds": {},
+  "mutable": [
+    "G02_SHARED_DENSE_T1",
+    "G02_SHARED_DENSE_T2",
+    "G02_SHARED_DENSE_T3"
+  ],
+  "immutable": [
+    "G02_SHARED_DENSE_SRC",
+    "G02_SHARED_DENSE_R1"
+  ],
+  "seeded": {
+    "G02_SHARED_DENSE_T3": "G02_SHARED_DENSE_T3_SEED"
+  },
+  "spec": {
+    "name": "g02_shared_dense",
+    "description": "Ortak büyük ve yoğun erişilen referans (2 INSERT aşaması), ardından upsert",
+    "n_src": 20000,
+    "refs": [
+      {
+        "rows": 100000,
+        "spread": 0.5,
+        "key_type": "NUMBER",
+        "pad": 60
+      }
+    ],
+    "stages": [
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0
+        ],
+        "selectivity": 100
+      },
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0
+        ],
+        "selectivity": 30
+      },
+      {
+        "kind": "UPSERT",
+        "lookups": [],
+        "selectivity": 100
+      }
+    ],
+    "n_groups": 200,
+    "seed_fraction": 50,
+    "salt": 0,
+    "expected_canonical_size": 405
+  }
+}

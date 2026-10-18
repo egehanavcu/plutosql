@@ -119,7 +119,10 @@ def package_workload(name: str) -> Workload:
     """Kütüphane paketinden (plutosql/workloads/library/<ad>) iş yükü."""
     from plutosql.workloads.package import WorkloadPackage
 
-    pkg = WorkloadPackage.load(name)
+    return workload_from_package(WorkloadPackage.load(name))
+
+
+def workload_from_package(pkg) -> Workload:
     return Workload(
         name=pkg.name,
         source=pkg.block,

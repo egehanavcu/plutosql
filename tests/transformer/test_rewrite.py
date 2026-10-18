@@ -214,3 +214,68 @@ def test_reserved_prefix_in_source_raises():
     a = find_sites(parse(loop_block("    INSERT INTO dst (id) VALUES (r.id);").replace("v      NUMBER", "px_v NUMBER")), CATALOG)
     with pytest.raises(RewriteError):
         rewrite(a, {s.id: s.default for s in a.sites}, CATALOG)
+
+
+# ---------------------------------------------------------------- ortak önbellek (H2 kuplajı)
+
+from plutosql.workloads.generator import GeneratedSpec, RefSpec, StageSpec, generate, static_catalog  # noqa: E402
+
+SHARED = GeneratedSpec(
+    name="t_shared", description="ortak referans", n_src=10,
+    refs=(RefSpec(rows=100),),
+    stages=(StageSpec("INSERT", (0,)), StageSpec("INSERT", (0,), selectivity=50)),
+)
+
+
+def shared_analysis():
+    cat = static_catalog(SHARED)
+    return find_sites(parse(generate(SHARED).block), cat), cat
+
+
+def test_shared_cache_is_declared_and_loaded_once_across_stages():
+    a, cat = shared_analysis()
+    ids = {s.name: s.id for s in a.sites}
+    lookups = [s.id for s in a.sites if s.pattern == P2]
+    assert len(lookups) == 2
+    x = {s.id: s.default for s in a.sites} | {lid: "LOOKUP_CACHE" for lid in lookups}
+    code = rewrite(a, x, cat).code
+    assert code.count("px_c1_map px_c1_map_t;") == 1
+    assert code.count("FOR px_c1_r IN (") == 1
+    assert code.count("px_c1_map.EXISTS(r_s1.k1)") == 1 and code.count("px_c1_map.EXISTS(r_s2.k1)") == 1
+    # yükleme birinci aşamadan önce, blok ikinci aşamadan sonra kapanır
+    assert code.index("FOR px_c1_r IN (") < code.index("OPEN c_s1;") < code.index("CLOSE c_s2;")
+    assert "px_s2_map" not in code and "px_s4_map" not in code
+    parse(code)
+
+
+def test_shared_cache_inside_bulk_stages():
+    a, cat = shared_analysis()
+    p1 = [s.id for s in a.sites if s.pattern == P1]
+    lookups = [s.id for s in a.sites if s.pattern == P2]
+    x = {p1[0]: "BULK_500", p1[1]: "BULK_50"} | {lid: "LOOKUP_CACHE" for lid in lookups}
+    code = rewrite(a, x, cat).code
+    assert code.count("FOR px_c1_r IN (") == 1
+    assert "px_c1_map.EXISTS(px_s1_rows(px_s1_i).k1)" in code
+    parse(code)
+
+
+def test_single_cache_keeps_original_naming():
+    a, cat = shared_analysis()
+    lookups = [s.id for s in a.sites if s.pattern == P2]
+    x = {s.id: s.default for s in a.sites} | {lookups[1]: "LOOKUP_CACHE"}
+    code = rewrite(a, x, cat).code
+    assert f"px_{lookups[1]}_map" in code and "px_c1" not in code
+
+
+def test_shared_cache_within_one_loop_unions_value_columns():
+    src = loop_block("    SELECT rate INTO v FROM ref_num WHERE id = r.k;\n"
+                     "    SELECT id INTO n FROM ref_num WHERE id = r.id;\n"
+                     "    INSERT INTO dst (id, amount) VALUES (r.id, r.amount * v + n);",
+                     ).replace("  v      NUMBER;\n", "  v      NUMBER;\n  n      NUMBER;\n")
+    a = find_sites(parse(src), CATALOG)
+    x = {s.id: ("LOOKUP_CACHE" if s.pattern == P2 else "ROW") for s in a.sites}
+    code = rewrite(a, x, CATALOG).code
+    assert "TYPE px_c1_val_t IS RECORD (rate ref_num.rate%TYPE, id ref_num.id%TYPE);" in code
+    assert "SELECT id AS px_k, rate AS px_v1, id AS px_v2" in code
+    assert code.count("FOR px_c1_r IN (") == 1
+    parse(code)
