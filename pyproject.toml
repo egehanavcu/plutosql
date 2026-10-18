@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "antlr4-python3-runtime==4.13.2",
     "oracledb>=2.0",
+    "numpy>=1.26",
 ]
 
 [project.optional-dependencies]
@@ -27,7 +28,7 @@ include = ["plutosql*"]
 [tool.setuptools.package-data]
 "plutosql.transformer" = ["grammar/*.g4"]
 "plutosql.db" = ["sql/*.sql"]
-"plutosql.workloads" = ["sql/*.sql"]
+"plutosql.workloads" = ["sql/*.sql", "library/*/*.sql", "library/*/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

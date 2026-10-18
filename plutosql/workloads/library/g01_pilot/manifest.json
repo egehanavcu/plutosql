@@ -1,0 +1,56 @@
+{
+  "name": "g01_pilot",
+  "prefix": "G01_PILOT",
+  "description": "Pilot: büyük seyrek + küçük referans araması, ardından grp bazında upsert",
+  "binds": {},
+  "mutable": [
+    "G01_PILOT_T1",
+    "G01_PILOT_T2"
+  ],
+  "immutable": [
+    "G01_PILOT_SRC",
+    "G01_PILOT_R1",
+    "G01_PILOT_R2"
+  ],
+  "seeded": {
+    "G01_PILOT_T2": "G01_PILOT_T2_SEED"
+  },
+  "spec": {
+    "name": "g01_pilot",
+    "description": "Pilot: büyük seyrek + küçük referans araması, ardından grp bazında upsert",
+    "n_src": 20000,
+    "refs": [
+      {
+        "rows": 200000,
+        "spread": 0.02,
+        "key_type": "NUMBER",
+        "pad": 100
+      },
+      {
+        "rows": 50,
+        "spread": 1.0,
+        "key_type": "NUMBER",
+        "pad": 0
+      }
+    ],
+    "stages": [
+      {
+        "kind": "INSERT",
+        "lookups": [
+          0,
+          1
+        ],
+        "selectivity": 100
+      },
+      {
+        "kind": "UPSERT",
+        "lookups": [],
+        "selectivity": 100
+      }
+    ],
+    "n_groups": 200,
+    "seed_fraction": 50,
+    "salt": 0,
+    "expected_canonical_size": 85
+  }
+}

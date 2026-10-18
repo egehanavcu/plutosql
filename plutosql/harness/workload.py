@@ -113,3 +113,27 @@ def pipeline_workload() -> Workload:
         reset=pipeline.reset,
         fingerprint=pipeline.seed_fingerprint,
     )
+
+
+def package_workload(name: str) -> Workload:
+    """Kütüphane paketinden (plutosql/workloads/library/<ad>) iş yükü."""
+    from plutosql.workloads.package import WorkloadPackage
+
+    pkg = WorkloadPackage.load(name)
+    return Workload(
+        name=pkg.name,
+        source=pkg.block,
+        target_tables=tuple(pkg.mutable),
+        reset=pkg.reset,
+        fingerprint=pkg.fingerprint,
+    )
+
+
+def workload_names() -> list[str]:
+    from plutosql.workloads.package import available
+
+    return ["pipeline_baseline", *available()]
+
+
+def get_workload(name: str) -> Workload:
+    return pipeline_workload() if name == "pipeline_baseline" else package_workload(name)

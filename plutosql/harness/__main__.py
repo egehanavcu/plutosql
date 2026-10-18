@@ -24,9 +24,8 @@ from plutosql.transformer import OracleCatalog
 from .evaluator import Evaluation, Evaluator
 from .protocol import Protocol
 from .store import MeasurementStore
-from .workload import Workload, pipeline_workload
+from .workload import Workload, get_workload, workload_names
 
-WORKLOADS = {"pipeline_baseline": pipeline_workload}
 
 
 def measurement_context(workload: Workload, admin, protocol: Protocol) -> tuple[dict, str]:
@@ -43,7 +42,7 @@ def measurement_context(workload: Workload, admin, protocol: Protocol) -> tuple[
 
 
 def build_evaluator(args) -> Evaluator:
-    workload = WORKLOADS[args.workload]()
+    workload = get_workload(args.workload)
     db = load_config()
     admin = connect(db)
     protocol = Protocol(warmups=args.warmups, repeats=args.repeats)
@@ -65,7 +64,7 @@ HEADER = f"{'konfigürasyon':<48} {'CG (f1)':>10} {'ΔPGA KB':>10}"
 
 
 def cmd_sites(args) -> int:
-    workload = WORKLOADS[args.workload]()
+    workload = get_workload(args.workload)
     with connect() as admin:
         analysis = workload.analyze(OracleCatalog(admin))
     from plutosql.transformer import SearchSpace
@@ -117,7 +116,7 @@ def cmd_exhaustive(args) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m plutosql.harness")
-    parser.add_argument("--workload", default="pipeline_baseline", choices=sorted(WORKLOADS))
+    parser.add_argument("--workload", default="pipeline_baseline", choices=workload_names())
     parser.add_argument("--warmups", type=int, default=1)
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--results", default=str(ROOT / "results"))
