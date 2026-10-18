@@ -86,7 +86,8 @@ class SearchSpace:
         sites = tuple(
             Site(id=s["id"], pattern=s["pattern"], name=s["name"], alternatives=tuple(s["alternatives"]),
                  default=s["default"], start_token=0, stop_token=0, line=s["line"], info=None,
-                 parent=s["parent"], excluded=tuple(s.get("excluded", {}).items()))
+                 parent=s["parent"], excluded=tuple(s.get("excluded", {}).items()),
+                 facts=s.get("summary"))
             for s in desc["sites"]
         )
         space = cls(sites)

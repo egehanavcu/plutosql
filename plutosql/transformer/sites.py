@@ -101,6 +101,7 @@ class Site:
     parent: str | None = None
     excluded: tuple[tuple[str, str], ...] = ()         # (alternatif, gerekçe)
     node: ParserRuleContext | None = field(default=None, compare=False, repr=False)
+    facts: dict | None = field(default=None, compare=False)   # info yoksa (özetten kurulan site) yapı bilgisi
 
     def contains(self, other: "Site") -> bool:
         return self.start_token <= other.start_token and other.stop_token <= self.stop_token
@@ -115,7 +116,29 @@ class Site:
             "default": self.default,
             "parent": self.parent,
             "excluded": {alt: reason for alt, reason in self.excluded},
+            "summary": self.summary(),
         }
+
+    def summary(self) -> dict:
+        """AST özeti: sitenin yapısal bilgileri (LLM ajanı ve raporlama için; kod metni içermez)."""
+        if self.info is None:
+            return dict(self.facts or {})
+        if isinstance(self.info, LookupInfo):
+            i = self.info
+            return {"table": i.table.name, "key_column": i.key_column,
+                    "value_columns": list(i.value_columns), "into": list(i.into_targets)}
+        i = self.info
+        out = {
+            "cursor": i.cursor,
+            "shape": i.shape,
+            "core_dml": f"{i.dml.kind} {i.dml.table.name}",
+            "prelude": [f"{step.kind} {step.target}" for step in i.prelude],
+            "counters": list(i.counters),
+            "record_fields_used": len(i.record_fields),
+        }
+        if i.upsert_insert is not None:
+            out["upsert_insert"] = f"INSERT {i.upsert_insert.table.name}"
+        return out
 
 
 @dataclass(frozen=True)

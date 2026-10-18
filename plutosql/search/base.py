@@ -40,6 +40,7 @@ class SearchResult:
     budget: int | None
     history: list[Evaluation]
     archive: list[Evaluation] = field(default_factory=list)
+    meta: dict = field(default_factory=dict)          # algoritmaya özgü iz (ör. LLM kararları)
 
     @classmethod
     def from_history(cls, algorithm: str, seed: int, budget: int | None,
@@ -58,11 +59,15 @@ class SearchAlgorithm:
 
     def run(self, evaluator: EvaluatorLike, seed: int) -> SearchResult:
         rng = random.Random(seed)
+        self.meta: dict = {}
+        self.seed = seed
         try:
             self._search(evaluator, rng)
         except BudgetExhausted:
             pass
-        return SearchResult.from_history(self.name, seed, getattr(evaluator, "budget", None), evaluator.history)
+        result = SearchResult.from_history(self.name, seed, getattr(evaluator, "budget", None), evaluator.history)
+        result.meta = self.meta
+        return result
 
     def _search(self, evaluator: EvaluatorLike, rng: random.Random) -> None:
         raise NotImplementedError

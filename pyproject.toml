@@ -9,6 +9,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+llm = [
+    "google-genai>=1.0",
+]
 dev = [
     "pytest>=8",
     "antlr4-tools>=0.2",
@@ -28,4 +31,7 @@ include = ["plutosql*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["oracle: canlı Oracle veritabanı gerektirir (erişilemezse atlanır)"]
+markers = [
+    "oracle: canlı Oracle veritabanı gerektirir (erişilemezse atlanır)",
+    "gemini: gerçek Gemini API çağrısı yapar (GEMINI_API_KEY yoksa atlanır)",
+]

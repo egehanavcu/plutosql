@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 import statistics
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 from plutosql.analysis.metrics import (
     Normalizer, additive_epsilon, epsilon_coverage, hypervolume, nondominated,
@@ -48,6 +48,7 @@ class RunRecord:
     eps_coverage: float
     front_found_at: int | None                # gerçek sınır noktalarının hepsi bulunduğunda kullanılan bütçe
     hv_curve: list[float]                     # bütçe adımı k (1..budget) sonundaki HV oranı
+    meta: dict = field(default_factory=dict)  # algoritmaya özgü iz (LLM: kararlar, yeniden sorma, düşme)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -91,6 +92,7 @@ def run_grid(algorithms: dict[str, SearchAlgorithm], replay: ReplayEvaluator, gt
                     eps_coverage=epsilon_coverage(arch, gt.front, gt.eps),
                     front_found_at=found_at,
                     hv_curve=curve,
+                    meta=result.meta,
                 ))
     return out
 

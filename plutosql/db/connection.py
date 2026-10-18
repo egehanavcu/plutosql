@@ -8,20 +8,7 @@ from pathlib import Path
 
 import oracledb
 
-ROOT = Path(__file__).resolve().parents[2]
-
-
-def _read_env_file(path: Path) -> dict[str, str]:
-    values: dict[str, str] = {}
-    if not path.exists():
-        return values
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        values[key.strip()] = value.strip()
-    return values
+from plutosql.env import ROOT, read_env_file
 
 
 @dataclass(frozen=True)
@@ -36,7 +23,7 @@ class DbConfig:
 
 def load_config(env_file: Path | None = None) -> DbConfig:
     """Ortam değişkenleri önceliklidir; yoksa proje kökündeki .env okunur."""
-    file_values = _read_env_file(env_file or ROOT / ".env")
+    file_values = read_env_file(env_file or ROOT / ".env")
 
     def get(key: str, default: str | None = None) -> str:
         value = os.environ.get(key, file_values.get(key, default))

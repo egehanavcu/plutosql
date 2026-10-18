@@ -17,6 +17,7 @@ from plutosql.analysis.metrics import noise_epsilon
 
 from .algorithms import ALGORITHMS
 from .experiment import GroundTruth, run_grid, summarize
+from .llm import CachedClient, GeminiClient, LLMPolicy
 from .replay import ReplayEvaluator
 
 
@@ -28,13 +29,25 @@ def cmd_compare(args) -> int:
     print(f"|𝒳| = {replay.space.size}, |𝒳/~| = {len(replay.space.canonical_configs())}, "
           f"gerçek sınır: {len(gt.front)} nokta, ε (normalize) = ({gt.eps[0]:.4f}, {gt.eps[1]:.4f})")
 
-    algorithms = {name: ALGORITHMS[name]() for name in args.algorithms}
+    algorithms = {name: ALGORITHMS[name]() for name in args.algorithms if name != "llm"}
+    llm_client = None
+    if "llm" in args.algorithms:
+        inner = GeminiClient.from_env(args.llm_model)
+        llm_client = CachedClient(inner, directory / "llm_cache" / f"{inner.model}.jsonl")
+        algorithms["llm"] = LLMPolicy(client=llm_client, temperature=args.llm_temperature,
+                                      domain_hints=not args.llm_no_hints)
+        print(f"LLM: {inner.model}, sıcaklık={args.llm_temperature}, alan bilgisi={'kapalı' if args.llm_no_hints else 'açık'}")
     runs = run_grid(algorithms, replay, gt, args.rhos, range(args.seeds))
+    if llm_client is not None:
+        print(f"LLM API çağrısı: {llm_client.calls} (geri kalanı önbellekten)")
 
     out = directory / "experiments" / f"{dt.datetime.now():%Y%m%d-%H%M%S}.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps({"settings": {"algorithms": args.algorithms, "rhos": args.rhos, "seeds": args.seeds,
+                                         "llm_model": llm_client.model if llm_client else None,
+                                         "llm_temperature": args.llm_temperature,
+                                         "llm_domain_hints": not args.llm_no_hints,
                                          "eps_normalized": gt.eps, "front": gt.front}}) + "\n")
         for r in runs:
             f.write(json.dumps(r.to_dict()) + "\n")
@@ -54,9 +67,12 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("compare")
     p.add_argument("--results", required=True, help="exhaustive çıktı dizini (measurements.jsonl + space.json)")
-    p.add_argument("--algorithms", nargs="+", default=list(ALGORITHMS), choices=sorted(ALGORITHMS))
+    p.add_argument("--algorithms", nargs="+", default=list(ALGORITHMS), choices=sorted([*ALGORITHMS, "llm"]))
     p.add_argument("--rhos", nargs="+", type=float, default=[0.1, 0.2, 0.3, 0.4])
     p.add_argument("--seeds", type=int, default=30)
+    p.add_argument("--llm-model", default=None, help="varsayılan: GEMINI_MODEL ya da gemini-3.8-flash")
+    p.add_argument("--llm-temperature", type=float, default=0.2)
+    p.add_argument("--llm-no-hints", action="store_true", help="alternatif anlamlarını istemden çıkar (ablation)")
     p.set_defaults(func=cmd_compare)
     args = parser.parse_args(argv)
     return args.func(args)

@@ -19,7 +19,19 @@
       ],
       "default": "ROW",
       "parent": null,
-      "excluded": {}
+      "excluded": {},
+      "summary": {
+        "cursor": "C_STG",
+        "shape": "DML",
+        "core_dml": "INSERT TXN_ENRICHED",
+        "prelude": [
+          "LOOKUP L_RATE"
+        ],
+        "counters": [
+          "L_PROCESSED"
+        ],
+        "record_fields_used": 5
+      }
     },
     {
       "id": "s2",
@@ -32,7 +44,17 @@
       ],
       "default": "LOOKUP_SQL",
       "parent": "s1",
-      "excluded": {}
+      "excluded": {},
+      "summary": {
+        "table": "REF_FX_RATE",
+        "key_column": "CURRENCY",
+        "value_columns": [
+          "RATE"
+        ],
+        "into": [
+          "L_RATE"
+        ]
+      }
     },
     {
       "id": "s3",
@@ -48,7 +70,16 @@
       ],
       "default": "ROW",
       "parent": null,
-      "excluded": {}
+      "excluded": {},
+      "summary": {
+        "cursor": "C_ENR",
+        "shape": "UPSERT",
+        "core_dml": "UPDATE SETTLEMENT",
+        "prelude": [],
+        "counters": [],
+        "record_fields_used": 3,
+        "upsert_insert": "INSERT SETTLEMENT"
+      }
     }
   ]
 }
