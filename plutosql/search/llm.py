@@ -28,6 +28,8 @@ from typing import Protocol
 
 from plutosql.harness.evaluator import Evaluation
 
+from plutosql.transformer.sites import ABSORBING_ALTERNATIVES
+
 from .base import EvaluatorLike, SearchAlgorithm, archive_of
 
 # ================================================================ istemciler
@@ -169,29 +171,83 @@ Alternative semantics (prior knowledge; may be wrong for this workload):
 - LOOKUP_SQL: one SELECT per row. LOOKUP_CACHE: the lookup table is preloaded into an associative array;
   fewer logical reads, more session memory."""
 
+# Opak etiket ablation'ı: alan bilgisi, PL/SQL bağlamı ve alternatif adları yok; yalnızca uzayın yapısı
+# (siteler, etiketler, soğurma ilişkisi) ve ölçülen geçmiş verilir.
+OPAQUE_SYSTEM_PROMPT = """\
+You are the search policy of a black-box multi-objective optimizer.
+A configuration assigns one opaque label to each site; labels carry no meaning beyond identity, and
+their letters are assigned at random. Each turn you choose exactly one configuration to evaluate next.
+
+Objectives: two costs f1 and f2, both minimized. The goal is to discover the Pareto front of (f1, f2)
+with as few evaluations as possible.
+
+Rules:
+- A configuration equivalent to one already evaluated wastes your turn. Two configurations are equivalent
+  when they differ only in sites that are ignored because of an ancestor's label (see "ignored_when").
+- Prefer configurations likely to be non-dominated, or that test an unexplored part of the trade-off.
+- Infer the effect of each label only from the measured history.
+
+Respond with JSON: a short rationale (at most 40 words) and the configuration."""
+
+
+class Labels:
+    """Gerçek alternatif adları ↔ istemde görünen etiketler.
+
+    Normal modda birebir. Opak modda her sitenin alternatifleri tohuma göre karıştırılıp A, B, C, …
+    harfleriyle etiketlenir; böylece ne ad ne de sıra (ör. orijinalin hep ilk olması) bilgi taşır.
+    """
+
+    def __init__(self, space, opaque: bool = False, seed: int = 0):
+        self.opaque = opaque
+        self.to_label: dict[str, dict[str, str]] = {}
+        self.from_label: dict[str, dict[str, str]] = {}
+        rng = random.Random(f"labels:{seed}")
+        for s in space.sites:
+            alts = list(s.alternatives)
+            if opaque:
+                rng.shuffle(alts)
+                pairs = {alt: chr(ord("A") + i) for i, alt in enumerate(alts)}
+            else:
+                pairs = {alt: alt for alt in alts}
+            self.to_label[s.id] = pairs
+            self.from_label[s.id] = {lab: alt for alt, lab in pairs.items()}
+
+    def label(self, site_id: str, alt: str) -> str:
+        return self.to_label[site_id][alt]
+
+    def choices(self, site_id: str) -> list[str]:
+        return sorted(self.from_label[site_id]) if self.opaque else list(self.from_label[site_id])
+
+    def show(self, config: Mapping[str, str]) -> str:
+        return " ".join(f"{sid}={self.label(sid, alt)}" for sid, alt in config.items())
+
 
 def _kb(v: float | None) -> str:
     return "-" if v is None else f"{v / 1024:.0f}"
 
 
-def build_prompt(ev: EvaluatorLike, feedback: list[str]) -> str:
+def _site_view(space, s, labels: Labels) -> dict:
+    """İstemdeki site özeti. Opak modda yalnızca yapı (etiketler ve soğurma ilişkisi)."""
+    ancestors = []
+    p = s.parent
+    while p is not None:
+        ancestors.append(p)
+        p = space.site(p).parent
+    absorbing = [
+        f"{a}={labels.label(a, alt)}"
+        for a in ancestors for alt in space.site(a).alternatives if alt in ABSORBING_ALTERNATIVES
+    ]
+    if labels.opaque:
+        return {"id": s.id, "labels": labels.choices(s.id), "original": labels.label(s.id, s.default),
+                "ignored_when": absorbing}
+    return {"id": s.id, "pattern": s.pattern, "name": s.name, "structure": s.summary(),
+            "alternatives": list(s.alternatives), "original": s.default, "absorbed_by": absorbing}
+
+
+def build_prompt(ev: EvaluatorLike, feedback: list[str], labels: Labels | None = None) -> str:
     space = ev.space
-    sites = []
-    for s in space.sites:
-        absorbed_by = []
-        p = s.parent
-        while p is not None:
-            absorbed_by.append(p)
-            p = space.site(p).parent
-        sites.append({
-            "id": s.id,
-            "pattern": s.pattern,
-            "name": s.name,
-            "structure": s.summary(),
-            "alternatives": list(s.alternatives),
-            "original": s.default,
-            "absorbed_by": [f"{a}=SET_BASED" for a in absorbed_by],
-        })
+    labels = labels or Labels(space)
+    sites = [_site_view(space, s, labels) for s in space.sites]
 
     seen: dict[str, Evaluation] = {}
     for e in ev.history:
@@ -199,21 +255,23 @@ def build_prompt(ev: EvaluatorLike, feedback: list[str]) -> str:
     base = next(iter(seen.values()), None)
     front = {e.digest for e in archive_of(list(seen.values()))}
 
+    unit = "" if labels.opaque else "KB"
     rows = []
     for k, e in enumerate(seen.values(), start=1):
-        cfg = " ".join(f"{sid}={alt}" for sid, alt in e.config.items())
+        cfg = labels.show(e.config)
         if not e.valid or e.f1 is None:
-            rows.append(f"{k:>3} | {cfg} | INVALID ({'; '.join(e.differences)[:80] or e.error})")
+            detail = "" if labels.opaque else f" ({'; '.join(e.differences)[:80] or e.error})"
+            rows.append(f"{k:>3} | {cfg} | INVALID{detail}")
             continue
         rel = ""
         if base is not None and base.f1:
             rel = f" | f1 {100 * e.f1 / base.f1:.0f}% f2 {100 * e.f2 / base.f2:.0f}% of original"
         mark = " | PARETO" if e.digest in front else ""
-        rows.append(f"{k:>3} | {cfg} | f1={e.f1:.0f} f2={_kb(e.f2)}KB{rel}{mark}")
+        rows.append(f"{k:>3} | {cfg} | f1={e.f1:.0f} f2={_kb(e.f2)}{unit}{rel}{mark}")
 
     left = ev.budget_left
     parts = [
-        "## Sites (AST summary)",
+        "## Sites" + ("" if labels.opaque else " (AST summary)"),
         json.dumps(sites, ensure_ascii=False, indent=1),
         f"## Search space\n|X| = {space.size}, distinct (canonical) configurations = {len(space.canonical_configs())}",
         f"## Budget\nused {ev.budget_used}" + ("" if left is None else f", remaining {left}"),
@@ -225,14 +283,15 @@ def build_prompt(ev: EvaluatorLike, feedback: list[str]) -> str:
     return "\n\n".join(parts)
 
 
-def response_schema(ev: EvaluatorLike) -> dict:
+def response_schema(ev: EvaluatorLike, labels: Labels | None = None) -> dict:
+    labels = labels or Labels(ev.space)
     return {
         "type": "object",
         "properties": {
             "rationale": {"type": "string"},
             "config": {
                 "type": "object",
-                "properties": {s.id: {"type": "string", "enum": list(s.alternatives)} for s in ev.space.sites},
+                "properties": {s.id: {"type": "string", "enum": labels.choices(s.id)} for s in ev.space.sites},
                 "required": [s.id for s in ev.space.sites],
             },
         },
@@ -250,6 +309,7 @@ class LLMPolicy(SearchAlgorithm):
     temperature: float = 0.2
     max_retries: int = 2
     domain_hints: bool = True
+    opaque_labels: bool = False             # ablation: alternatif adları ve alan bağlamı gizlenir
     max_steps: int = 200                    # bütçesiz (canlı) kullanımda üst sınır
 
     def _seed(self, step: int, attempt: int) -> int:
@@ -261,13 +321,20 @@ class LLMPolicy(SearchAlgorithm):
         if self.client is None:
             raise ValueError("LLMPolicy bir LLM istemcisi gerektirir")
         space = ev.space
-        system = SYSTEM_PROMPT.format(hints=DOMAIN_HINTS if self.domain_hints else "")
-        schema = response_schema(ev)
+        labels = Labels(space, opaque=self.opaque_labels, seed=self.seed)
+        if self.opaque_labels:
+            system = OPAQUE_SYSTEM_PROMPT
+        else:
+            system = SYSTEM_PROMPT.format(hints=DOMAIN_HINTS if self.domain_hints else "")
+        schema = response_schema(ev, labels)
         decisions = self.meta.setdefault("decisions", [])
         self.meta.update({"model": self.client.model, "client_settings": dict(getattr(self.client, "settings", {})),
                           "temperature": self.temperature,
-                          "domain_hints": self.domain_hints, "retries": 0, "fallbacks": 0,
+                          "domain_hints": self.domain_hints and not self.opaque_labels,
+                          "opaque_labels": self.opaque_labels, "retries": 0, "fallbacks": 0,
                           "malformed": 0, "api_calls": 0, "cached_calls": 0})
+        if self.opaque_labels:
+            self.meta["label_map"] = labels.to_label
 
         ev.evaluate(space.default())
         total = len(space.canonical_configs())
@@ -280,17 +347,17 @@ class LLMPolicy(SearchAlgorithm):
             feedback: list[str] = []
             chosen, rationale, source = None, "", "llm"
             for attempt in range(self.max_retries + 1):
-                prompt = build_prompt(ev, feedback)
+                prompt = build_prompt(ev, feedback, labels)
                 reply = self.client.complete(system, prompt, schema,
                                              temperature=self.temperature, seed=self._seed(step, attempt))
                 self.meta["cached_calls" if reply.cached else "api_calls"] += 1
-                x, rationale, problem = _parse(reply.text, ev)
+                x, rationale, problem = _parse(reply.text, ev, labels)
                 if problem is None:
                     key = tuple(space.canonicalize(x).values())
                     if key not in seen:
                         chosen = x
                         break
-                    problem = (f"{' '.join(f'{k}={v}' for k, v in x.items())} is equivalent to an already "
+                    problem = (f"{labels.show(x)} is equivalent to an already "
                                f"evaluated configuration; choose a different one")
                 else:
                     self.meta["malformed"] += 1
@@ -309,8 +376,9 @@ class LLMPolicy(SearchAlgorithm):
             ev.evaluate(chosen)
 
 
-def _parse(text: str, ev: EvaluatorLike) -> tuple[dict, str, str | None]:
-    """(config, gerekçe, sorun). Şema kısıtlı olsa da yanıt yine de doğrulanır."""
+def _parse(text: str, ev: EvaluatorLike, labels: Labels | None = None) -> tuple[dict, str, str | None]:
+    """(gerçek adlarla config, gerekçe, sorun). Şema kısıtlı olsa da yanıt yine de doğrulanır."""
+    labels = labels or Labels(ev.space)
     try:
         data = json.loads(text)
         cfg, rationale = data["config"], str(data.get("rationale", ""))
@@ -320,10 +388,10 @@ def _parse(text: str, ev: EvaluatorLike) -> tuple[dict, str, str | None]:
         return {}, rationale, "'config' must be an object"
     x = {}
     for s in ev.space.sites:
-        alt = cfg.get(s.id)
-        if alt not in s.alternatives:
-            return {}, rationale, f"site {s.id}: {alt!r} is not one of {list(s.alternatives)}"
-        x[s.id] = alt
+        lab = cfg.get(s.id)
+        if lab not in labels.from_label[s.id]:
+            return {}, rationale, f"site {s.id}: {lab!r} is not one of {labels.choices(s.id)}"
+        x[s.id] = labels.from_label[s.id][lab]
     extra = set(cfg) - set(x)
     if extra:
         return {}, rationale, f"unknown site ids: {sorted(extra)}"

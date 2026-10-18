@@ -35,10 +35,11 @@ def cmd_compare(args) -> int:
         inner = GeminiClient.from_env(args.llm_model, thinking_budget=args.llm_thinking_budget)
         llm_client = CachedClient(inner, directory / "llm_cache" / f"{inner.model}.jsonl")
         algorithms["llm"] = LLMPolicy(client=llm_client, temperature=args.llm_temperature,
-                                      domain_hints=not args.llm_no_hints)
+                                      domain_hints=not args.llm_no_hints, opaque_labels=args.llm_opaque_labels)
         thinking = "model varsayılanı" if args.llm_thinking_budget is None else args.llm_thinking_budget
         print(f"LLM: {inner.model}, sıcaklık={args.llm_temperature}, düşünme bütçesi={thinking}, "
-              f"alan bilgisi={'kapalı' if args.llm_no_hints else 'açık'}")
+              f"alan bilgisi={'kapalı' if args.llm_no_hints or args.llm_opaque_labels else 'açık'}, "
+              f"opak etiketler={'açık' if args.llm_opaque_labels else 'kapalı'}")
     runs = run_grid(algorithms, replay, gt, args.rhos, range(args.seeds))
     if llm_client is not None:
         print(f"LLM API çağrısı: {llm_client.calls} (geri kalanı önbellekten)")
@@ -50,7 +51,8 @@ def cmd_compare(args) -> int:
                                          "llm_model": llm_client.model if llm_client else None,
                                          "llm_temperature": args.llm_temperature,
                                          "llm_thinking_budget": args.llm_thinking_budget,
-                                         "llm_domain_hints": not args.llm_no_hints,
+                                         "llm_domain_hints": not (args.llm_no_hints or args.llm_opaque_labels),
+                                         "llm_opaque_labels": args.llm_opaque_labels,
                                          "eps_normalized": gt.eps, "front": gt.front}}) + "\n")
         for r in runs:
             f.write(json.dumps(r.to_dict()) + "\n")
@@ -85,6 +87,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--llm-temperature", type=float, default=0.2)
     p.add_argument("--llm-thinking-budget", type=int, default=None,
                    help="düşünme token bütçesi (0: kapalı; verilmezse model varsayılanı)")
+    p.add_argument("--llm-opaque-labels", action="store_true",
+                   help="alternatif adlarını ve alan bağlamını gizle; yalnızca yapı + ölçümler (ablation)")
     p.add_argument("--llm-no-hints", action="store_true", help="alternatif anlamlarını istemden çıkar (ablation)")
     p.set_defaults(func=cmd_compare)
     args = parser.parse_args(argv)

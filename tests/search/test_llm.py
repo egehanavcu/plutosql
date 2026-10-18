@@ -151,3 +151,46 @@ def test_cache_key_depends_on_client_settings(tmp_path):
     ka = CachedClient(a, tmp_path / "c.jsonl").key("s", "p", {}, 0.2, 1)
     kb = CachedClient(b, tmp_path / "c.jsonl").key("s", "p", {}, 0.2, 1)
     assert ka != kb
+
+
+# ---------------------------------------------------------------- opak etiket ablation'ı
+
+from plutosql.search.llm import OPAQUE_SYSTEM_PROMPT, Labels  # noqa: E402
+
+LEAKS = ("ROW", "BULK", "SET_BASED", "LOOKUP", "SQL", "PL/", "Oracle", "PGA", "consistent", "cursor",
+         "table", "INSERT", "UPDATE", "P1", "P2", "absorbed")
+
+
+def test_opaque_labels_are_seeded_bijections(space):
+    a, b, c = Labels(space, True, seed=1), Labels(space, True, seed=1), Labels(space, True, seed=2)
+    assert a.to_label == b.to_label
+    assert a.to_label != c.to_label
+    for s in space.sites:
+        assert sorted(a.to_label[s.id].values()) == [chr(ord("A") + i) for i in range(len(s.alternatives))]
+        assert {a.from_label[s.id][a.label(s.id, alt)] for alt in s.alternatives} == set(s.alternatives)
+
+
+def test_opaque_prompt_leaks_no_names_or_domain_context(space, records):
+    ev = replay(space, records, budget=4)
+    ev.evaluate(space.default())
+    ev.evaluate({"s1": "SET_BASED", "s2": "LOOKUP_CACHE", "s3": "BULK_50"})
+    labels = Labels(space, True, seed=3)
+    prompt = build_prompt(ev, ["x"], labels)
+    schema = json.dumps(response_schema(ev, labels))
+    for text in (prompt, schema, OPAQUE_SYSTEM_PROMPT):
+        for word in LEAKS:
+            assert word not in text, (word, text[:200])
+    # yapı korunur: s2, s1'in soğurucu etiketiyle yok sayılır
+    assert f'"s1={labels.label("s1", "SET_BASED")}"' in prompt
+
+
+def test_opaque_answers_are_mapped_back(space, records):
+    labels = Labels(space, True, seed=0)
+    target = {"s1": "BULK_50", "s2": "LOOKUP_CACHE", "s3": "SET_BASED"}
+    client = ScriptedClient([answer(**{k: labels.label(k, v) for k, v in target.items()})])
+    ev = replay(space, records, budget=2)
+    result = LLMPolicy(client=client, opaque_labels=True).run(ev, seed=0)
+    assert result.history[1].config == target
+    assert result.meta["opaque_labels"] and result.meta["label_map"] == labels.to_label
+    assert client.calls[0]["system"] == OPAQUE_SYSTEM_PROMPT
+    assert all(word not in client.calls[0]["prompt"] for word in LEAKS)
