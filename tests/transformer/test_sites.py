@@ -7,6 +7,7 @@ from plutosql.transformer.sites import (
     BULK_ALTS, LOOKUP_CACHE, LOOKUP_SQL, P1, P2, ROW, SET_BASED, find_sites,
 )
 from plutosql.transformer.space import InvalidConfig, SearchSpace
+from plutosql.workloads import workload_source
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -50,7 +51,7 @@ def rejection_reasons(analysis, pattern):
 
 @pytest.fixture(scope="module")
 def baseline():
-    return analyze((FIXTURES / "pipeline_baseline.sql").read_text(encoding="utf-8"))
+    return analyze(workload_source("pipeline_baseline"))
 
 
 def test_baseline_sites(baseline):

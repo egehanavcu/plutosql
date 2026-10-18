@@ -24,6 +24,7 @@ include = ["plutosql*"]
 [tool.setuptools.package-data]
 "plutosql.transformer" = ["grammar/*.g4"]
 "plutosql.db" = ["sql/*.sql"]
+"plutosql.workloads" = ["sql/*.sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

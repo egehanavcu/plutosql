@@ -7,7 +7,6 @@ Bu, harness'taki tam doğrulama protokolünün hafif bir ön sürümüdür.
 """
 
 from collections import Counter
-from pathlib import Path
 
 import pytest
 
@@ -16,9 +15,9 @@ oracledb = pytest.importorskip("oracledb")
 from plutosql.db import pipeline
 from plutosql.db.connection import connect
 from plutosql.db.scripts import split_script
+from plutosql.workloads import workload_source
 from plutosql.transformer import OracleCatalog, SearchSpace, find_sites, parse, rewrite
 
-FIXTURE = Path(__file__).parents[1] / "transformer" / "fixtures" / "pipeline_baseline.sql"
 
 pytestmark = pytest.mark.oracle
 
@@ -64,7 +63,7 @@ def test_reset_restores_initial_state(conn):
 
 def test_all_canonical_configs_match_baseline(conn):
     catalog = OracleCatalog(conn)
-    analysis = find_sites(parse(FIXTURE.read_text(encoding="utf-8")), catalog)
+    analysis = find_sites(parse(workload_source("pipeline_baseline")), catalog)
     space = SearchSpace(tuple(analysis.sites))
     assert space.size == 50
 
@@ -91,7 +90,7 @@ def test_missing_lookup_key_raises_same_error_everywhere(conn, bad_currency):
     fırlatır, blok ROLLBACK + RAISE yapar. Her konfigürasyon aynı hatayı vermeli ve tablolar
     sıfırlanmış durumda kalmalı."""
     catalog = OracleCatalog(conn)
-    analysis = find_sites(parse(FIXTURE.read_text(encoding="utf-8")), catalog)
+    analysis = find_sites(parse(workload_source("pipeline_baseline")), catalog)
     space = SearchSpace(tuple(analysis.sites))
 
     pipeline.reset(conn)

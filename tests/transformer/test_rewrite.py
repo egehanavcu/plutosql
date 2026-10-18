@@ -14,6 +14,7 @@ from plutosql.transformer import SearchSpace, find_sites, parse
 from plutosql.transformer.catalog import StaticCatalog, cache_key_for, parse_type, Column
 from plutosql.transformer.rewrite import RewriteError, rewrite
 from plutosql.transformer.sites import P1, P2
+from plutosql.workloads import workload_source
 
 FIXTURES = Path(__file__).parent / "fixtures"
 GOLDEN = Path(__file__).parent / "golden"
@@ -21,7 +22,7 @@ GOLDEN = Path(__file__).parent / "golden"
 
 @pytest.fixture(scope="module")
 def baseline(pipeline_catalog):
-    src = (FIXTURES / "pipeline_baseline.sql").read_text(encoding="utf-8")
+    src = workload_source("pipeline_baseline")
     return find_sites(parse(src), pipeline_catalog)
 
 

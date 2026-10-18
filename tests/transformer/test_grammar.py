@@ -6,9 +6,11 @@ from antlr4.tree.Tree import ParseTree
 from plutosql.transformer import PlsqlSyntaxError, parse
 from plutosql.transformer.generated.MiniPlsqlParser import MiniPlsqlParser as P
 from plutosql.transformer.parsing import token_text_roundtrip
+from plutosql.workloads import workload_source
 
 FIXTURES = Path(__file__).parent / "fixtures"
-FIXTURE_FILES = sorted(FIXTURES.glob("*.sql"))
+WORKLOADS = Path(__file__).parents[2] / "plutosql" / "workloads" / "sql"
+FIXTURE_FILES = sorted(FIXTURES.glob("*.sql")) + [WORKLOADS / "pipeline_baseline.sql"]
 
 
 def load(name: str) -> str:
@@ -37,7 +39,7 @@ def test_token_roundtrip_is_lossless(path: Path):
 
 
 def test_baseline_structure():
-    result = parse(load("pipeline_baseline.sql"))
+    result = parse(workload_source("pipeline_baseline"))
     tree = result.tree
 
     cursors = [c.identifier().getText() for c in find_all(tree, P.CursorDeclarationContext)]
