@@ -17,7 +17,7 @@ from plutosql.analysis.metrics import noise_epsilon
 
 from .algorithms import ALGORITHMS
 from .experiment import GroundTruth, run_grid, summarize
-from .llm import CachedClient, GeminiClient, LLMPolicy
+from .llm import CachedClient, GeminiClient, LLMPolicy, RandomClient
 from .replay import ReplayEvaluator
 
 
@@ -34,8 +34,7 @@ def cmd_compare(args) -> int:
     if "llm" in args.algorithms:
         inner = GeminiClient.from_env(args.llm_model, thinking_budget=args.llm_thinking_budget)
         llm_client = CachedClient(inner, directory / "llm_cache" / f"{inner.model}.jsonl")
-        algorithms["llm"] = LLMPolicy(client=llm_client, temperature=args.llm_temperature,
-                                      domain_hints=not args.llm_no_hints, opaque_labels=args.llm_opaque_labels)
+        algorithms["llm"] = _llm_policy(args, llm_client)
         thinking = "model varsayılanı" if args.llm_thinking_budget is None else args.llm_thinking_budget
         print(f"LLM: {inner.model}, sıcaklık={args.llm_temperature}, düşünme bütçesi={thinking}, "
               f"alan bilgisi={'kapalı' if args.llm_no_hints or args.llm_opaque_labels else 'açık'}, "
@@ -53,6 +52,8 @@ def cmd_compare(args) -> int:
                                          "llm_thinking_budget": args.llm_thinking_budget,
                                          "llm_domain_hints": not (args.llm_no_hints or args.llm_opaque_labels),
                                          "llm_opaque_labels": args.llm_opaque_labels,
+                                         "llm_history": args.llm_history, "llm_recent": args.llm_recent,
+                                         "llm_proposals": args.llm_proposals,
                                          "eps_normalized": gt.eps, "front": gt.front}}) + "\n")
         for r in runs:
             f.write(json.dumps(r.to_dict()) + "\n")
@@ -75,22 +76,55 @@ def cmd_compare(args) -> int:
     return 0
 
 
+def _llm_policy(args, client) -> LLMPolicy:
+    return LLMPolicy(client=client, temperature=args.llm_temperature, domain_hints=not args.llm_no_hints,
+                     opaque_labels=args.llm_opaque_labels, history=args.llm_history, recent=args.llm_recent,
+                     proposals=args.llm_proposals)
+
+
+def cmd_estimate(args) -> int:
+    """LLM deneyinin çağrı ve istem boyutunu API'ye gitmeden tahmin eder (rastgele yanıt veren istemci)."""
+    directory = Path(args.results)
+    replay = ReplayEvaluator.from_results(directory)
+    gt = GroundTruth.from_records(replay.records, noise_epsilon(replay.records))
+    policy = _llm_policy(args, RandomClient(seed=0))
+    runs = run_grid({"llm": policy}, replay, gt, args.rhos, range(args.seeds))
+    calls = sum(r.meta["api_calls"] for r in runs)
+    prompt_tokens = sum(r.meta["prompt_chars"] for r in runs) / 4          # ~4 karakter / token
+    output_tokens = calls * 100 * args.llm_proposals    # ölçülen: ~100 çıktı tokenı / önerilen konfigürasyon
+    print(f"|𝒳| = {replay.space.size}, koşu = {len(runs)} (ρ = {args.rhos}, tohum = {args.seeds}), "
+          f"geçmiş = {args.llm_history}, k = {args.llm_proposals}")
+    print(f"çağrı: {calls}  (koşu başına ort. {calls / len(runs):.1f}; yeniden sorma {sum(r.meta['retries'] for r in runs)})")
+    print(f"istem tokenı: ~{prompt_tokens / 1e6:.2f} M  (çağrı başına ort. ~{prompt_tokens / max(1, calls):.0f}, "
+          f"en büyük koşu ~{max(r.meta['prompt_chars'] for r in runs) / 4 / 1e3:.0f} k)")
+    print(f"çıktı tokenı: ~{output_tokens / 1e6:.2f} M  (+ modelin düşünme tokenları; ölçülen ort. ~700/çağrı)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--results", required=True, help="exhaustive çıktı dizini (measurements.jsonl + space.json)")
+    common.add_argument("--rhos", nargs="+", type=float, default=[0.1, 0.2, 0.3, 0.4])
+    common.add_argument("--seeds", type=int, default=30)
+    common.add_argument("--llm-model", default=None, help="varsayılan: GEMINI_MODEL ya da gemini-3.8-flash")
+    common.add_argument("--llm-temperature", type=float, default=0.2)
+    common.add_argument("--llm-thinking-budget", type=int, default=None,
+                        help="düşünme token bütçesi (0: kapalı; verilmezse model varsayılanı)")
+    common.add_argument("--llm-opaque-labels", action="store_true",
+                        help="alternatif adlarını ve alan bağlamını gizle; yalnızca yapı + ölçümler (ablation)")
+    common.add_argument("--llm-no-hints", action="store_true", help="alternatif anlamlarını istemden çıkar (ablation)")
+    common.add_argument("--llm-history", choices=["full", "compact"], default="full",
+                        help="compact: Pareto + son N + site etki özeti (büyük bütçeler için)")
+    common.add_argument("--llm-recent", type=int, default=10, help="compact geçmişte gösterilen son değerlendirme")
+    common.add_argument("--llm-proposals", type=int, default=1, help="çağrı başına önerilen konfigürasyon sayısı (k)")
+
     parser = argparse.ArgumentParser(prog="python -m plutosql.search")
     sub = parser.add_subparsers(dest="command", required=True)
-    p = sub.add_parser("compare")
-    p.add_argument("--results", required=True, help="exhaustive çıktı dizini (measurements.jsonl + space.json)")
+    p = sub.add_parser("compare", parents=[common], help="algoritma karşılaştırması (ground truth üzerinde)")
     p.add_argument("--algorithms", nargs="+", default=list(ALGORITHMS), choices=sorted([*ALGORITHMS, "llm"]))
-    p.add_argument("--rhos", nargs="+", type=float, default=[0.1, 0.2, 0.3, 0.4])
-    p.add_argument("--seeds", type=int, default=30)
-    p.add_argument("--llm-model", default=None, help="varsayılan: GEMINI_MODEL ya da gemini-3.8-flash")
-    p.add_argument("--llm-temperature", type=float, default=0.2)
-    p.add_argument("--llm-thinking-budget", type=int, default=None,
-                   help="düşünme token bütçesi (0: kapalı; verilmezse model varsayılanı)")
-    p.add_argument("--llm-opaque-labels", action="store_true",
-                   help="alternatif adlarını ve alan bağlamını gizle; yalnızca yapı + ölçümler (ablation)")
-    p.add_argument("--llm-no-hints", action="store_true", help="alternatif anlamlarını istemden çıkar (ablation)")
     p.set_defaults(func=cmd_compare)
+    e = sub.add_parser("estimate", parents=[common], help="LLM çağrı/token tahmini (API çağrısı yok)")
+    e.set_defaults(func=cmd_estimate)
     args = parser.parse_args(argv)
     return args.func(args)
 

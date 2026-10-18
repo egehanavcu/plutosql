@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+import statistics
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -244,7 +245,53 @@ def _site_view(space, s, labels: Labels) -> dict:
             "alternatives": list(s.alternatives), "original": s.default, "absorbed_by": absorbing}
 
 
-def build_prompt(ev: EvaluatorLike, feedback: list[str], labels: Labels | None = None) -> str:
+def _pct(v: float, base: float) -> str:
+    return f"{100 * v / base:.0f}%" if base else "-"
+
+
+def _row(k: int, e: Evaluation, labels: Labels, base: Evaluation | None, front: set[str]) -> str:
+    cfg = labels.show(e.config)
+    if not e.valid or e.f1 is None:
+        detail = "" if labels.opaque else f" ({'; '.join(e.differences)[:80] or e.error})"
+        return f"{k:>3} | {cfg} | INVALID{detail}"
+    unit = "" if labels.opaque else "KB"
+    rel = ""
+    if base is not None and base.f1:
+        rel = f" | f1 {100 * e.f1 / base.f1:.0f}% f2 {100 * e.f2 / base.f2:.0f}% of original"
+    mark = " | PARETO" if e.digest in front else ""
+    return f"{k:>3} | {cfg} | f1={e.f1:.0f} f2={_kb(e.f2)}{unit}{rel}{mark}"
+
+
+def _effects(space, evaluated: list[Evaluation], base: Evaluation | None, labels: Labels) -> list[str]:
+    """Site başına, her alternatifin geçtiği (soğurulmamış) geçerli konfigürasyonlardaki f1/f2 özeti.
+
+    Değerler orijinal koda göre yüzdedir: en iyi ve medyan. Sıkıştırılmış geçmişte, gösterilmeyen
+    değerlendirmelerin bilgisini taşır.
+    """
+    if base is None or not base.f1:
+        return []
+    lines = []
+    valid = [e for e in evaluated if e.valid and e.f1 is not None]
+    for s in space.sites:
+        parts = []
+        for lab in labels.choices(s.id):
+            alt = labels.from_label[s.id][lab]
+            vals = [e for e in valid if e.config[s.id] == alt and not space.is_absorbed(e.config, s.id)]
+            if not vals:
+                parts.append(f"{lab}: untested")
+                continue
+            f1 = sorted(e.f1 for e in vals)
+            f2 = sorted(e.f2 for e in vals)
+            parts.append(f"{lab}: n={len(vals)} f1 best {_pct(f1[0], base.f1)} median {_pct(statistics.median(f1), base.f1)}"
+                         f", f2 best {_pct(f2[0], base.f2)} median {_pct(statistics.median(f2), base.f2)}")
+        lines.append(f"{s.id}: " + " | ".join(parts))
+    return lines
+
+
+def build_prompt(ev: EvaluatorLike, feedback: list[str], labels: Labels | None = None,
+                 history: str = "full", recent: int = 10, proposals: int = 1) -> str:
+    """İstem. history="full": tüm geçmiş (küçük bütçeler). history="compact": orijinal + güncel Pareto
+    arşivi + son `recent` değerlendirme + site başına etki özeti; boyutu bütçeden bağımsızdır."""
     space = ev.space
     labels = labels or Labels(space)
     sites = [_site_view(space, s, labels) for s in space.sites]
@@ -252,22 +299,26 @@ def build_prompt(ev: EvaluatorLike, feedback: list[str], labels: Labels | None =
     seen: dict[str, Evaluation] = {}
     for e in ev.history:
         seen.setdefault(e.digest, e)
-    base = next(iter(seen.values()), None)
-    front = {e.digest for e in archive_of(list(seen.values()))}
+    evaluated = list(seen.values())
+    base = evaluated[0] if evaluated else None
+    front = {e.digest for e in archive_of(evaluated)}
 
-    unit = "" if labels.opaque else "KB"
-    rows = []
-    for k, e in enumerate(seen.values(), start=1):
-        cfg = labels.show(e.config)
-        if not e.valid or e.f1 is None:
-            detail = "" if labels.opaque else f" ({'; '.join(e.differences)[:80] or e.error})"
-            rows.append(f"{k:>3} | {cfg} | INVALID{detail}")
-            continue
-        rel = ""
-        if base is not None and base.f1:
-            rel = f" | f1 {100 * e.f1 / base.f1:.0f}% f2 {100 * e.f2 / base.f2:.0f}% of original"
-        mark = " | PARETO" if e.digest in front else ""
-        rows.append(f"{k:>3} | {cfg} | f1={e.f1:.0f} f2={_kb(e.f2)}{unit}{rel}{mark}")
+    if history == "full":
+        rows = [_row(k, e, labels, base, front) for k, e in enumerate(evaluated, start=1)]
+        hist = ["## Evaluated configurations (in order)\n" + ("\n".join(rows) if rows else "(none)")]
+    elif history == "compact":
+        keep = {e.digest for e in evaluated[:1]} | front | {e.digest for e in evaluated[-recent:]}
+        rows = [_row(k, e, labels, base, front) for k, e in enumerate(evaluated, start=1) if e.digest in keep]
+        omitted = len(evaluated) - len(rows)
+        head = (f"## Evaluated configurations: {len(evaluated)} in total (showing the original, the current "
+                f"Pareto set and the last {recent}; {omitted} omitted)")
+        hist = [head + "\n" + ("\n".join(rows) if rows else "(none)")]
+        effects = _effects(space, evaluated, base, labels)
+        if effects:
+            hist.append("## Per-site effects over all evaluated configurations (relative to original)\n"
+                        + "\n".join(effects))
+    else:
+        raise ValueError(f"bilinmeyen geçmiş biçimi: {history}")
 
     left = ev.budget_left
     parts = [
@@ -275,27 +326,41 @@ def build_prompt(ev: EvaluatorLike, feedback: list[str], labels: Labels | None =
         json.dumps(sites, ensure_ascii=False, indent=1),
         f"## Search space\n|X| = {space.size}, distinct (canonical) configurations = {len(space.canonical_configs())}",
         f"## Budget\nused {ev.budget_used}" + ("" if left is None else f", remaining {left}"),
-        "## Evaluated configurations (in order)\n" + ("\n".join(rows) if rows else "(none)"),
+        *hist,
     ]
     if feedback:
         parts.append("## Feedback on your previous answer this turn\n" + "\n".join(f"- {m}" for m in feedback))
-    parts.append("Choose the next configuration to evaluate.")
+    if proposals == 1:
+        parts.append("Choose the next configuration to evaluate.")
+    else:
+        parts.append(f"Propose up to {proposals} distinct configurations to evaluate next, most promising first. "
+                     "Each must differ from every evaluated configuration.")
     return "\n\n".join(parts)
 
 
-def response_schema(ev: EvaluatorLike, labels: Labels | None = None) -> dict:
+def _config_schema(ev: EvaluatorLike, labels: Labels) -> dict:
+    return {
+        "type": "object",
+        "properties": {s.id: {"type": "string", "enum": labels.choices(s.id)} for s in ev.space.sites},
+        "required": [s.id for s in ev.space.sites],
+    }
+
+
+def response_schema(ev: EvaluatorLike, labels: Labels | None = None, proposals: int = 1) -> dict:
     labels = labels or Labels(ev.space)
+    if proposals == 1:
+        return {
+            "type": "object",
+            "properties": {"rationale": {"type": "string"}, "config": _config_schema(ev, labels)},
+            "required": ["rationale", "config"],
+        }
     return {
         "type": "object",
         "properties": {
             "rationale": {"type": "string"},
-            "config": {
-                "type": "object",
-                "properties": {s.id: {"type": "string", "enum": labels.choices(s.id)} for s in ev.space.sites},
-                "required": [s.id for s in ev.space.sites],
-            },
+            "configs": {"type": "array", "items": _config_schema(ev, labels), "minItems": 1, "maxItems": proposals},
         },
-        "required": ["rationale", "config"],
+        "required": ["rationale", "configs"],
     }
 
 
@@ -310,6 +375,9 @@ class LLMPolicy(SearchAlgorithm):
     max_retries: int = 2
     domain_hints: bool = True
     opaque_labels: bool = False             # ablation: alternatif adları ve alan bağlamı gizlenir
+    history: str = "full"                   # full | compact (büyük bütçeler için)
+    recent: int = 10                        # compact: gösterilen son değerlendirme sayısı
+    proposals: int = 1                      # çağrı başına önerilen konfigürasyon sayısı (k)
     max_steps: int = 200                    # bütçesiz (canlı) kullanımda üst sınır
 
     def _seed(self, step: int, attempt: int) -> int:
@@ -326,13 +394,14 @@ class LLMPolicy(SearchAlgorithm):
             system = OPAQUE_SYSTEM_PROMPT
         else:
             system = SYSTEM_PROMPT.format(hints=DOMAIN_HINTS if self.domain_hints else "")
-        schema = response_schema(ev, labels)
+        schema = response_schema(ev, labels, self.proposals)
         decisions = self.meta.setdefault("decisions", [])
         self.meta.update({"model": self.client.model, "client_settings": dict(getattr(self.client, "settings", {})),
                           "temperature": self.temperature,
                           "domain_hints": self.domain_hints and not self.opaque_labels,
-                          "opaque_labels": self.opaque_labels, "retries": 0, "fallbacks": 0,
-                          "malformed": 0, "api_calls": 0, "cached_calls": 0})
+                          "opaque_labels": self.opaque_labels, "history": self.history, "recent": self.recent,
+                          "proposals": self.proposals, "retries": 0, "fallbacks": 0,
+                          "malformed": 0, "api_calls": 0, "cached_calls": 0, "prompt_chars": 0})
         if self.opaque_labels:
             self.meta["label_map"] = labels.to_label
 
@@ -345,35 +414,69 @@ class LLMPolicy(SearchAlgorithm):
             if len(seen) >= total:
                 return
             feedback: list[str] = []
-            chosen, rationale, source = None, "", "llm"
+            queue: list[dict] = []
+            rationale, source = "", "llm"
             for attempt in range(self.max_retries + 1):
-                prompt = build_prompt(ev, feedback, labels)
+                prompt = build_prompt(ev, feedback, labels, self.history, self.recent, self.proposals)
+                self.meta["prompt_chars"] += len(system) + len(prompt)
                 reply = self.client.complete(system, prompt, schema,
                                              temperature=self.temperature, seed=self._seed(step, attempt))
                 self.meta["cached_calls" if reply.cached else "api_calls"] += 1
-                x, rationale, problem = _parse(reply.text, ev, labels)
-                if problem is None:
-                    key = tuple(space.canonicalize(x).values())
-                    if key not in seen:
-                        chosen = x
-                        break
-                    problem = (f"{labels.show(x)} is equivalent to an already "
-                               f"evaluated configuration; choose a different one")
+                if self.proposals == 1:
+                    x, rationale, problem = _parse(reply.text, ev, labels)
+                    xs = [x] if problem is None else []
                 else:
+                    xs, rationale, problem, bad = _parse_many(reply.text, ev, labels)
+                    self.meta["malformed"] += bad
+                if problem is None:
+                    keys: set[tuple] = set()
+                    for x in xs:
+                        key = tuple(space.canonicalize(x).values())
+                        if key not in seen and key not in keys:
+                            keys.add(key)
+                            queue.append(x)
+                    if queue:
+                        break
+                    if self.proposals == 1:
+                        problem = (f"{labels.show(xs[0])} is equivalent to an already "
+                                   f"evaluated configuration; choose a different one")
+                    else:
+                        problem = ("all proposed configurations are equivalent to already evaluated ones ("
+                                   + "; ".join(labels.show(x) for x in xs[:5]) + "); propose different ones")
+                elif self.proposals == 1:
                     self.meta["malformed"] += 1
                 feedback.append(problem)
                 if attempt < self.max_retries:
                     self.meta["retries"] += 1
-            if chosen is None:                                   # LLM tekrar etmeye devam etti
+            if not queue:                                        # LLM tekrar etmeye devam etti
                 self.meta["fallbacks"] += 1
                 source = "fallback"
                 unseen = [c for c in space.canonical_configs() if tuple(c.values()) not in seen]
                 if not unseen:
                     return
-                chosen = rng.choice(unseen)
-            decisions.append({"step": step, "config": dict(chosen), "source": source,
-                              "rationale": rationale[:300], "feedback": feedback})
-            ev.evaluate(chosen)
+                queue = [rng.choice(unseen)]
+            for rank, x in enumerate(queue):
+                if ev.budget_left is not None and ev.budget_left <= 0:
+                    return
+                decisions.append({"step": step, "rank": rank, "config": dict(x), "source": source,
+                                  "rationale": rationale[:300] if rank == 0 else "",
+                                  "feedback": feedback if rank == 0 else []})
+                ev.evaluate(x)
+
+
+def _map_config(cfg, ev: EvaluatorLike, labels: Labels) -> tuple[dict, str | None]:
+    if not isinstance(cfg, Mapping):
+        return {}, "each configuration must be an object"
+    x = {}
+    for s in ev.space.sites:
+        lab = cfg.get(s.id)
+        if lab not in labels.from_label[s.id]:
+            return {}, f"site {s.id}: {lab!r} is not one of {labels.choices(s.id)}"
+        x[s.id] = labels.from_label[s.id][lab]
+    extra = set(cfg) - set(x)
+    if extra:
+        return {}, f"unknown site ids: {sorted(extra)}"
+    return x, None
 
 
 def _parse(text: str, ev: EvaluatorLike, labels: Labels | None = None) -> tuple[dict, str, str | None]:
@@ -386,13 +489,50 @@ def _parse(text: str, ev: EvaluatorLike, labels: Labels | None = None) -> tuple[
         return {}, "", "response was not valid JSON with keys 'rationale' and 'config'"
     if not isinstance(cfg, Mapping):
         return {}, rationale, "'config' must be an object"
-    x = {}
-    for s in ev.space.sites:
-        lab = cfg.get(s.id)
-        if lab not in labels.from_label[s.id]:
-            return {}, rationale, f"site {s.id}: {lab!r} is not one of {labels.choices(s.id)}"
-        x[s.id] = labels.from_label[s.id][lab]
-    extra = set(cfg) - set(x)
-    if extra:
-        return {}, rationale, f"unknown site ids: {sorted(extra)}"
-    return x, rationale, None
+    x, problem = _map_config(cfg, ev, labels)
+    return x, rationale, problem
+
+
+def _parse_many(text: str, ev: EvaluatorLike, labels: Labels) -> tuple[list[dict], str, str | None, int]:
+    """(geçerli öneriler, gerekçe, sorun, geçersiz öneri sayısı). Geçersiz öğeler atlanır."""
+    try:
+        data = json.loads(text)
+        items, rationale = data["configs"], str(data.get("rationale", ""))
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return [], "", "response was not valid JSON with keys 'rationale' and 'configs'", 1
+    if not isinstance(items, list) or not items:
+        return [], rationale, "'configs' must be a non-empty array", 1
+    out, problems = [], []
+    for cfg in items:
+        x, problem = _map_config(cfg, ev, labels)
+        if problem is None:
+            out.append(x)
+        else:
+            problems.append(problem)
+    if not out:
+        return [], rationale, "no valid configuration: " + "; ".join(problems[:3]), len(problems)
+    return out, rationale, None, len(problems)
+
+
+class RandomClient:
+    """Maliyet tahmini için: şemaya uyan rastgele yanıtlar üretir, API'ye gitmez.
+
+    Gerçek LLM'den daha sık tekrar önerebilir; bu yüzden yeniden sorma sayısı üst sınır gibi yorumlanmalı.
+    """
+    model = "random-estimator"
+    settings: dict = {}
+
+    def __init__(self, seed: int = 0):
+        self._rng = random.Random(seed)
+
+    def _config(self, schema: dict) -> dict:
+        return {sid: self._rng.choice(p["enum"]) for sid, p in schema["properties"].items()}
+
+    def complete(self, system: str, prompt: str, schema: dict, *, temperature: float, seed: int) -> LLMReply:
+        props = schema["properties"]
+        if "config" in props:
+            data = {"rationale": "", "config": self._config(props["config"])}
+        else:
+            k = props["configs"]["maxItems"]
+            data = {"rationale": "", "configs": [self._config(props["configs"]["items"]) for _ in range(k)]}
+        return LLMReply(json.dumps(data))

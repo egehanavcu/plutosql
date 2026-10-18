@@ -13,3 +13,6 @@ plutosql/transformer/grammar/.antlr/
 
 # Yerel ortam ayarları
 .env
+
+# Uzun ölçüm koşularının logları
+results/logs/

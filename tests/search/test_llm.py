@@ -194,3 +194,71 @@ def test_opaque_answers_are_mapped_back(space, records):
     assert result.meta["opaque_labels"] and result.meta["label_map"] == labels.to_label
     assert client.calls[0]["system"] == OPAQUE_SYSTEM_PROMPT
     assert all(word not in client.calls[0]["prompt"] for word in LEAKS)
+
+
+# ---------------------------------------------------------------- ölçeklenme: compact geçmiş, k öneri
+
+from plutosql.search.llm import RandomClient  # noqa: E402
+
+
+def many(*cfgs):
+    return json.dumps({"rationale": "toplu", "configs": [dict(c) for c in cfgs]})
+
+
+def test_compact_history_shows_front_recent_and_effects(space, records):
+    ev = replay(space, records)
+    for c in space.canonical_configs()[:12]:
+        ev.evaluate(c)
+    full = build_prompt(ev, [])
+    compact = build_prompt(ev, [], history="compact", recent=3)
+    assert "12 in total" in compact and "omitted" in compact
+    assert compact.count(" | f1=") < full.count(" | f1=")
+    assert "## Per-site effects" in compact and "s1: ROW: n=" in compact
+    assert " 12 | " in compact and "  1 | " in compact                    # son ve orijinal gösterilir
+    assert compact.count("PARETO") == full.count("PARETO")                 # arşiv eksiksiz
+
+
+def test_compact_effects_exclude_absorbed_sites(space, records):
+    ev = replay(space, records)
+    ev.evaluate(space.default())
+    ev.evaluate({"s1": "SET_BASED", "s2": "LOOKUP_SQL", "s3": "ROW"})     # s2 soğurulmuş
+    compact = build_prompt(ev, [], history="compact")
+    line = next(l for l in compact.splitlines() if l.startswith("s2:"))
+    assert "LOOKUP_SQL: n=1 " in line and "LOOKUP_CACHE: untested" in line
+
+
+def test_k_proposals_schema_and_batch_evaluation(space, records):
+    ev = replay(space, records, budget=4)
+    schema = response_schema(ev, proposals=3)
+    assert schema["properties"]["configs"]["maxItems"] == 3
+    client = ScriptedClient([many(
+        {"s1": "ROW", "s2": "LOOKUP_SQL", "s3": "ROW"},                    # orijinal: tekrar, atlanır
+        {"s1": "BULK_50", "s2": "LOOKUP_SQL", "s3": "ROW"},
+        {"s1": "BULK_50", "s2": "LOOKUP_SQL", "s3": "ROW"},                # yanıt içi tekrar
+        {"s1": "SET_BASED", "s2": "NOPE", "s3": "ROW"},                    # geçersiz öğe
+        {"s1": "SET_BASED", "s2": "LOOKUP_SQL", "s3": "BULK_50"},
+    )] + [many({"s1": "ROW", "s2": "LOOKUP_CACHE", "s3": "ROW"})])
+    result = LLMPolicy(client=client, proposals=3).run(ev, seed=0)
+    assert [e.config for e in result.history[1:3]] == [
+        {"s1": "BULK_50", "s2": "LOOKUP_SQL", "s3": "ROW"},
+        {"s1": "SET_BASED", "s2": "LOOKUP_SQL", "s3": "BULK_50"},
+    ]
+    assert result.meta["malformed"] == 1 and len(client.calls) == 2
+    assert [d["rank"] for d in result.meta["decisions"]] == [0, 1, 0]
+    assert ev.budget_used == 4
+
+
+def test_k_proposals_all_duplicates_trigger_feedback(space, records):
+    dup = many({"s1": "ROW", "s2": "LOOKUP_SQL", "s3": "ROW"})
+    client = ScriptedClient([dup, many({"s1": "BULK_50", "s2": "LOOKUP_SQL", "s3": "ROW"})])
+    result = LLMPolicy(client=client, proposals=2).run(replay(space, records, budget=2), seed=0)
+    assert result.meta["retries"] == 1 and result.meta["fallbacks"] == 0
+    assert "all proposed configurations are equivalent" in client.calls[1]["prompt"]
+
+
+def test_random_client_drives_policy_for_estimates(space, records):
+    for k in (1, 4):
+        ev = replay(space, records, budget=8)
+        result = LLMPolicy(client=RandomClient(seed=1), proposals=k, history="compact").run(ev, seed=0)
+        assert ev.budget_used == 8 and result.meta["prompt_chars"] > 0
+        assert result.meta["malformed"] == 0
