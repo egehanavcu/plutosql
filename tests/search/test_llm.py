@@ -14,6 +14,7 @@ from plutosql.search.replay import ReplayEvaluator
 class ScriptedClient:
     """Sırayla verilen yanıtları döndürür; çağrıları kaydeder."""
     model = "fake"
+    settings = {}
 
     def __init__(self, replies):
         self.replies = list(replies)
@@ -142,3 +143,11 @@ def test_gemini_smoke(space, records):
     result = LLMPolicy(client=client).run(ev, seed=0)
     assert ev.budget_used == 3
     assert result.meta["malformed"] == 0
+
+
+def test_cache_key_depends_on_client_settings(tmp_path):
+    a, b = ScriptedClient([]), ScriptedClient([])
+    b.settings = {"thinking_budget": 256}
+    ka = CachedClient(a, tmp_path / "c.jsonl").key("s", "p", {}, 0.2, 1)
+    kb = CachedClient(b, tmp_path / "c.jsonl").key("s", "p", {}, 0.2, 1)
+    assert ka != kb

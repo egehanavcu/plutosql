@@ -42,6 +42,7 @@ class LLMReply:
 
 class LLMClient(Protocol):
     model: str
+    settings: dict                       # yanıtı etkileyen istemci ayarları (önbellek anahtarına girer)
 
     def complete(self, system: str, prompt: str, schema: dict, *, temperature: float, seed: int) -> LLMReply: ...
 
@@ -55,6 +56,7 @@ class GeminiClient:
         self.model = model
         self.max_attempts = max_attempts
         self.thinking_budget = thinking_budget
+        self.settings = {"thinking_budget": thinking_budget}
         self._client = genai.Client(api_key=api_key)
 
     @classmethod
@@ -107,6 +109,7 @@ class CachedClient:
     def __init__(self, inner: LLMClient, path: Path):
         self.inner = inner
         self.model = inner.model
+        self.settings = dict(getattr(inner, "settings", {}))
         self.path = Path(path)
         self.calls = 0                                            # gerçek API çağrısı sayısı
         self._cache: dict[str, dict] = {}
@@ -118,7 +121,8 @@ class CachedClient:
                         self._cache[rec["key"]] = rec
 
     def key(self, system: str, prompt: str, schema: dict, temperature: float, seed: int) -> str:
-        blob = json.dumps([self.model, system, prompt, schema, temperature, seed], sort_keys=True, ensure_ascii=False)
+        blob = json.dumps([self.model, self.settings, system, prompt, schema, temperature, seed],
+                          sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
     def complete(self, system: str, prompt: str, schema: dict, *, temperature: float, seed: int) -> LLMReply:
@@ -128,7 +132,7 @@ class CachedClient:
             return LLMReply(rec["text"], rec.get("usage", {}), cached=True)
         reply = self.inner.complete(system, prompt, schema, temperature=temperature, seed=seed)
         self.calls += 1
-        rec = {"key": k, "model": self.model, "temperature": temperature, "seed": seed,
+        rec = {"key": k, "model": self.model, "settings": self.settings, "temperature": temperature, "seed": seed,
                "text": reply.text, "usage": reply.usage}
         self._cache[k] = rec
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -260,7 +264,8 @@ class LLMPolicy(SearchAlgorithm):
         system = SYSTEM_PROMPT.format(hints=DOMAIN_HINTS if self.domain_hints else "")
         schema = response_schema(ev)
         decisions = self.meta.setdefault("decisions", [])
-        self.meta.update({"model": self.client.model, "temperature": self.temperature,
+        self.meta.update({"model": self.client.model, "client_settings": dict(getattr(self.client, "settings", {})),
+                          "temperature": self.temperature,
                           "domain_hints": self.domain_hints, "retries": 0, "fallbacks": 0,
                           "malformed": 0, "api_calls": 0, "cached_calls": 0})
 
