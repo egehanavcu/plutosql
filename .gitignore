@@ -10,3 +10,6 @@ plutosql/transformer/generated/*.tokens
 plutosql/transformer/grammar/.antlr/
 # Markdown notları (yerel tutulur)
 *.md
+
+# Yerel ortam ayarları
+.env
