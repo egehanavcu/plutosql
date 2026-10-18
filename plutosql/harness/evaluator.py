@@ -83,12 +83,12 @@ class Evaluator:
         if ev is None:
             record = self.store.get(result.digest) if self.store is not None else None
             if record is not None:
-                ev = _from_record(record, measured_now=False)
+                ev = evaluation_from_record(record, measured_now=False)
             else:
                 record = self._measure(result.config, result.digest, result.code)
                 if self.store is not None:
                     self.store.put(record)
-                ev = _from_record(record, measured_now=True)
+                ev = evaluation_from_record(record, measured_now=True)
             self._memo[result.digest] = ev
         # Aynı kod, istenen konfigürasyonun kanonik biçimiyle raporlanır.
         ev = Evaluation(**{**asdict(ev), "config": result.config})
@@ -146,7 +146,7 @@ def _trial_dict(t) -> dict:
     return d
 
 
-def _from_record(rec: dict, measured_now: bool) -> Evaluation:
+def evaluation_from_record(rec: dict, measured_now: bool) -> Evaluation:
     return Evaluation(
         config=rec["config"],
         digest=rec["digest"],

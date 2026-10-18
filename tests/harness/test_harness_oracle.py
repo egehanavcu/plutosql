@@ -77,6 +77,7 @@ def test_procedure_workload_with_out_params(admin):
         source=source,
         target_tables=("TXN_ENRICHED",),
         reset=pipeline.reset,
+        fingerprint=pipeline.seed_fingerprint,
         invocation=Invocation("pluto_enrich", {"p_status": "NEW"}, {"p_rows": int}),
     )
     ev = evaluator(admin, wl)

@@ -8,6 +8,7 @@ from .scripts import run_script, sql_resource
 
 TABLES = ("REF_FX_RATE", "STG_TXN", "TXN_ENRICHED", "SETTLEMENT", "STG_TXN_SEED", "SETTLEMENT_SEED")
 TARGET_TABLES = ("STG_TXN", "TXN_ENRICHED", "SETTLEMENT")     # boru hattının yazdığı tablolar
+SEED_TABLES = ("REF_FX_RATE", "STG_TXN_SEED", "SETTLEMENT_SEED")  # denemeler arasında değişmeyen durum
 
 
 @dataclass(frozen=True)
@@ -54,3 +55,18 @@ def reset(connection) -> None:
 def row_counts(connection) -> dict[str, int]:
     with connection.cursor() as cur:
         return {t: cur.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in TABLES}
+
+
+def seed_fingerprint(connection) -> dict[str, list[int]]:
+    """Değişmeyen başlangıç durumunun parmak izi: tablo başına [satır sayısı, kolon başına SUM(ORA_HASH)].
+
+    Ölçüm bağlamında kullanılır. Geçici tablolar (denemeler sonrası durum) bilerek dahil edilmez.
+    """
+    out = {}
+    with connection.cursor() as cur:
+        for t in SEED_TABLES:
+            cols = [r[0] for r in cur.execute(
+                "SELECT column_name FROM user_tab_columns WHERE table_name = :t ORDER BY column_id", t=t)]
+            sums = ", ".join(f'NVL(SUM(ORA_HASH("{c}")), 0)' for c in cols)
+            out[t] = [int(v) for v in cur.execute(f'SELECT COUNT(*), {sums} FROM "{t}"').fetchone()]
+    return out

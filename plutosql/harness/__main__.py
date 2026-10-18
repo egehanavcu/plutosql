@@ -18,16 +18,28 @@ import time
 from pathlib import Path
 
 from plutosql.analysis.pareto import pareto_front
-from plutosql.db import pipeline
 from plutosql.db.connection import ROOT, connect, load_config
 from plutosql.transformer import OracleCatalog
 
 from .evaluator import Evaluation, Evaluator
 from .protocol import Protocol
 from .store import MeasurementStore
-from .workload import pipeline_workload
+from .workload import Workload, pipeline_workload
 
 WORKLOADS = {"pipeline_baseline": pipeline_workload}
+
+
+def measurement_context(workload: Workload, admin, protocol: Protocol) -> tuple[dict, str]:
+    """Ölçümlerin geçerli olduğu koşullar ve dizin anahtarı. Yalnızca değişmeyen durum girer."""
+    context = {
+        "workload": workload.name,
+        "source_sha256": hashlib.sha256(workload.source.encode("utf-8")).hexdigest(),
+        "data": workload.fingerprint(admin),
+        "protocol": protocol.to_dict(),
+        "db_version": admin.version,
+    }
+    key = hashlib.sha256(json.dumps(context, sort_keys=True).encode()).hexdigest()[:12]
+    return context, key
 
 
 def build_evaluator(args) -> Evaluator:
@@ -35,14 +47,7 @@ def build_evaluator(args) -> Evaluator:
     db = load_config()
     admin = connect(db)
     protocol = Protocol(warmups=args.warmups, repeats=args.repeats)
-    context = {
-        "workload": workload.name,
-        "source_sha256": hashlib.sha256(workload.source.encode("utf-8")).hexdigest(),
-        "data": pipeline.row_counts(admin),
-        "protocol": protocol.to_dict(),
-        "db_version": admin.version,
-    }
-    key = hashlib.sha256(json.dumps(context, sort_keys=True).encode()).hexdigest()[:12]
+    context, key = measurement_context(workload, admin, protocol)
     store = MeasurementStore(Path(args.results) / workload.name / key / "measurements.jsonl", context)
     return Evaluator(workload, admin, db, OracleCatalog(admin), protocol, store=store)
 
@@ -84,6 +89,10 @@ def cmd_measure(args) -> int:
 def cmd_exhaustive(args) -> int:
     ev_ = build_evaluator(args)
     configs = ev_.space.canonical_configs()
+    space_file = ev_.store.path.parent / "space.json"
+    # Tekrar oynatma (plutosql.search) uzayı veritabanı olmadan buradan kurar.
+    space_file.write_text(json.dumps(ev_.space.describe(), ensure_ascii=False, indent=2) + "\n",
+                          encoding="utf-8", newline="\n")
     print(f"|𝒳| = {ev_.space.size}, |𝒳/~| = {len(configs)}, depo: {ev_.store.path} ({len(ev_.store)} kayıt)")
     print(HEADER)
     t0 = time.monotonic()

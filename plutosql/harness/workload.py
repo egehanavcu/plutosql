@@ -42,6 +42,7 @@ class Workload:
     source: str
     target_tables: tuple[str, ...]
     reset: Callable[[oracledb.Connection], None]
+    fingerprint: Callable[[oracledb.Connection], dict]    # ölçüm bağlamı için değişmeyen veri durumu
     invocation: Invocation | None = None
 
     def analyze(self, catalog: Catalog) -> SiteAnalysis:
@@ -110,4 +111,5 @@ def pipeline_workload() -> Workload:
         source=workload_source("pipeline_baseline"),
         target_tables=pipeline.TARGET_TABLES,
         reset=pipeline.reset,
+        fingerprint=pipeline.seed_fingerprint,
     )

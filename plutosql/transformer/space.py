@@ -80,6 +80,20 @@ class SearchSpace:
             seen.setdefault(tuple(c.values()), c)
         return list(seen.values())
 
+    @classmethod
+    def from_description(cls, desc: dict) -> "SearchSpace":
+        """`describe()` çıktısından uzayı kurar (kanonikleştirme için yeterli; kod üretimi için değil)."""
+        sites = tuple(
+            Site(id=s["id"], pattern=s["pattern"], name=s["name"], alternatives=tuple(s["alternatives"]),
+                 default=s["default"], start_token=0, stop_token=0, line=s["line"], info=None,
+                 parent=s["parent"], excluded=tuple(s.get("excluded", {}).items()))
+            for s in desc["sites"]
+        )
+        space = cls(sites)
+        if space.size != desc["size"]:
+            raise ValueError("özet tutarsız: |𝒳| uyuşmuyor")
+        return space
+
     def describe(self) -> dict:
         """LLM ajanı ve raporlama için JSON'a çevrilebilir özet."""
         return {
