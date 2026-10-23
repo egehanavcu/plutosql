@@ -129,3 +129,19 @@ def test_run_grid_and_summary(space, records):
     assert all(a <= b + 1e-12 for r in runs for a, b in itertools.pairwise(r.hv_curve))   # monoton
     rows = summarize(runs)
     assert {(r["algorithm"], r["rho"]) for r in rows} == {(a, p) for a in ("random", "greedy") for p in (0.5, 1.0)}
+
+
+def test_igd_plus():
+    from plutosql.analysis.metrics import igd_plus
+    front = [(0.0, 1.0), (1.0, 0.0)]
+    assert igd_plus(front, front) == 0.0
+    assert igd_plus([(0.0, 1.0)], front) == pytest.approx((0.0 + 1.0) / 2)        # (1,0) noktasına uzaklık 1
+    assert igd_plus([(0.2, 0.2)], front) == pytest.approx((0.2 + 0.2) / 2)        # yalnızca kötü yöndeki fark
+    assert igd_plus([], front) == float("inf")
+
+
+def test_run_records_store_archive_and_igd(space, records):
+    rp = replay(space, records)
+    gt = GroundTruth.from_records(list(records.values()), (0.0, 0.0))
+    (run,) = run_grid({"random": RandomSearch()}, rp, gt, [1.0], range(1))
+    assert run.igd_plus == pytest.approx(0.0) and run.archive

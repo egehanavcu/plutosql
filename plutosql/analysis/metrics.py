@@ -104,3 +104,19 @@ def _quantile(values: list[float], q: float) -> float:
     if len(values) == 1:
         return float(values[0])
     return statistics.quantiles(sorted(values), n=100, method="inclusive")[round(q * 100) - 1]
+
+
+def igd_plus(archive: Sequence[Point], reference_front: Sequence[Point]) -> float:
+    """IGD+ (Ishibuchi vd., 2015): gerçek sınırın her noktasına arşivden baskılama yönündeki uzaklığın ortalaması.
+
+    d+(z, a) = sqrt(Σ_i max(a_i − z_i, 0)²). 0 = gerçek sınır tamamen bulundu. HV'nin aksine doymaz:
+    kaçırılan her sınır noktası değeri büyütür. Arşiv boşsa +∞.
+    """
+    if not archive:
+        return float("inf")
+    if not reference_front:
+        return 0.0
+    total = 0.0
+    for z in reference_front:
+        total += min(sum(max(a_i - z_i, 0.0) ** 2 for a_i, z_i in zip(a, z)) ** 0.5 for a in archive)
+    return total / len(reference_front)

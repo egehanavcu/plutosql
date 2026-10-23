@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 
 from plutosql.analysis.metrics import (
-    Normalizer, additive_epsilon, epsilon_coverage, hypervolume, nondominated,
+    Normalizer, additive_epsilon, epsilon_coverage, hypervolume, igd_plus, nondominated,
 )
 
 from .base import SearchAlgorithm, archive_of
@@ -48,6 +48,8 @@ class RunRecord:
     eps_coverage: float
     front_found_at: int | None                # gerçek sınır noktalarının hepsi bulunduğunda kullanılan bütçe
     hv_curve: list[float]                     # bütçe adımı k (1..budget) sonundaki HV oranı
+    igd_plus: float | None = None             # normalize uzayda IGD+ (düşük iyi)
+    archive: list[list[float]] = field(default_factory=list)   # son arşiv, ham (f1, f2)
     meta: dict = field(default_factory=dict)  # algoritmaya özgü iz (LLM: kararlar, yeniden sorma, düşme)
 
     def to_dict(self) -> dict:
@@ -82,7 +84,8 @@ def run_grid(algorithms: dict[str, SearchAlgorithm], replay: ReplayEvaluator, gt
             for seed in seeds:
                 ev = replay.fresh(budget)
                 result = algo.run(ev, seed)
-                arch = [gt.normalizer(e.objectives) for e in archive_of(result.history)]
+                raw_arch = [list(e.objectives) for e in archive_of(result.history)]
+                arch = [gt.normalizer(tuple(p)) for p in raw_arch]
                 curve, found_at = evaluate_run(result.history, gt, budget)
                 out.append(RunRecord(
                     algorithm=name, rho=rho, budget=budget, seed=seed,
@@ -92,6 +95,8 @@ def run_grid(algorithms: dict[str, SearchAlgorithm], replay: ReplayEvaluator, gt
                     eps_coverage=epsilon_coverage(arch, gt.front, gt.eps),
                     front_found_at=found_at,
                     hv_curve=curve,
+                    igd_plus=igd_plus(arch, gt.front),
+                    archive=raw_arch,
                     meta=result.meta,
                 ))
     return out
