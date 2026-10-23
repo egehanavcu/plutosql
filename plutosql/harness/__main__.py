@@ -41,11 +41,18 @@ def measurement_context(workload: Workload, admin, protocol: Protocol) -> tuple[
     return context, key
 
 
+def make_protocol(args) -> Protocol:
+    """Varsayılan oturum ayarlarına --session-setting ile verilenler eklenir (ör. duyarlılık analizi)."""
+    extra = tuple(getattr(args, "session_setting", None) or ())
+    return Protocol(warmups=args.warmups, repeats=args.repeats,
+                    session_settings=Protocol().session_settings + extra)
+
+
 def build_evaluator(args) -> Evaluator:
     workload = get_workload(args.workload)
     db = load_config()
     admin = connect(db)
-    protocol = Protocol(warmups=args.warmups, repeats=args.repeats)
+    protocol = make_protocol(args)
     context, key = measurement_context(workload, admin, protocol)
     store = MeasurementStore(Path(args.results) / workload.name / key / "measurements.jsonl", context)
     return Evaluator(workload, admin, db, OracleCatalog(admin), protocol, store=store)
@@ -119,6 +126,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--workload", default="pipeline_baseline", choices=workload_names())
     parser.add_argument("--warmups", type=int, default=1)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--session-setting", action="append", default=[],
+                        help="ek ALTER SESSION deyimi (tekrarlanabilir); ölçüm bağlamına girer, ayrı depo oluşur")
     parser.add_argument("--results", default=str(ROOT / "results"))
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("sites").set_defaults(func=cmd_sites)

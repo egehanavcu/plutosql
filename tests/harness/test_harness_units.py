@@ -68,3 +68,23 @@ def test_pareto_front():
 def test_invocation_call_text():
     inv = Invocation("pluto_enrich", {"p_status": "NEW"}, {"p_rows": int})
     assert inv.call_text() == "BEGIN pluto_enrich(p_status => :p_status, p_rows => :p_rows); END;"
+
+
+def test_store_retries_transient_permission_errors(tmp_path, monkeypatch):
+    import pathlib
+
+    s = MeasurementStore(tmp_path / "m.jsonl", {"c": 1})
+    real_open, calls = pathlib.Path.open, {"n": 0}
+
+    def flaky(self, *a, **k):
+        if self.name == "m.jsonl" and calls["n"] < 2:
+            calls["n"] += 1
+            raise PermissionError("kilitli")
+        return real_open(self, *a, **k)
+
+    monkeypatch.setattr(pathlib.Path, "open", flaky)
+    monkeypatch.setattr("plutosql.harness.store.time.sleep", lambda s: None)
+    s.put({"digest": "x", "f1": 1})
+    assert calls["n"] == 2
+    monkeypatch.setattr(pathlib.Path, "open", real_open)
+    assert MeasurementStore(tmp_path / "m.jsonl", {"c": 1}).get("x")["f1"] == 1

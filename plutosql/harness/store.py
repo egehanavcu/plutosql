@@ -8,6 +8,7 @@ dosya yalnızca sona eklenir, yarıda kalan bir koşu kaldığı yerden devam ed
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 
@@ -37,9 +38,20 @@ class MeasurementStore:
                     rec = json.loads(line)
                     self.records[rec["digest"]] = rec
 
-    def _append(self, obj: dict) -> None:
-        with self.path.open("a", encoding="utf-8", newline="\n") as f:
-            f.write(json.dumps(obj, ensure_ascii=False, sort_keys=True, default=str) + "\n")
+    def _append(self, obj: dict, attempts: int = 8) -> None:
+        line = json.dumps(obj, ensure_ascii=False, sort_keys=True, default=str) + "\n"
+        delay = 0.25
+        for attempt in range(1, attempts + 1):
+            try:
+                with self.path.open("a", encoding="utf-8", newline="\n") as f:
+                    f.write(line)
+                return
+            except PermissionError:
+                # Windows: dosya başka bir süreç (editör, antivirüs, git) tarafından anlık kilitli olabilir.
+                if attempt == attempts:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, 8.0)
 
     def get(self, digest: str) -> dict | None:
         return self.records.get(digest)
