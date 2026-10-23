@@ -1,0 +1,161 @@
+iş_yükü,koşul,değerlendirme,medyan_HV_oranı
+g01_pilot,LLM (adlar),1,0.1109
+g01_pilot,LLM (adlar),3,0.9092
+g01_pilot,LLM (adlar),6,0.9589
+g01_pilot,LLM (adlar),8,0.9623
+g01_pilot,LLM (adlar),10,0.9663
+g01_pilot,LLM (opak),1,0.1109
+g01_pilot,LLM (opak),3,0.7082
+g01_pilot,LLM (opak),6,0.9539
+g01_pilot,LLM (opak),8,0.9548
+g01_pilot,LLM (opak),10,0.9575
+g01_pilot,Random,1,0.1109
+g01_pilot,Random,3,0.693
+g01_pilot,Random,6,0.761
+g01_pilot,Random,8,0.9518
+g01_pilot,Random,10,0.9602
+g01_pilot,SA,1,0.1109
+g01_pilot,SA,3,0.3007
+g01_pilot,SA,6,0.6348
+g01_pilot,SA,8,0.9146
+g01_pilot,SA,10,0.9221
+g01_pilot,Greedy,1,0.1109
+g01_pilot,Greedy,3,0.3014
+g01_pilot,Greedy,6,0.9156
+g01_pilot,Greedy,8,0.9309
+g01_pilot,Greedy,10,0.9309
+g01_pilot,NSGA-II,1,0.1109
+g01_pilot,NSGA-II,3,0.693
+g01_pilot,NSGA-II,6,0.7609
+g01_pilot,NSGA-II,8,0.7734
+g01_pilot,NSGA-II,10,0.9374
+g01_pilot,Uzman kuralı,1,0.1109
+g01_pilot,Uzman kuralı,3,0.9092
+g01_pilot,Uzman kuralı,6,0.9092
+g01_pilot,Uzman kuralı,8,0.9443
+g01_pilot,Uzman kuralı,10,0.952
+g01_pilot,LLM (geri bildirimsiz),1,0.1109
+g01_pilot,LLM (geri bildirimsiz),3,0.9446
+g01_pilot,LLM (geri bildirimsiz),6,0.9481
+g01_pilot,LLM (geri bildirimsiz),8,0.9537
+g01_pilot,LLM (geri bildirimsiz),10,0.964
+g03_shared_sparse,LLM (adlar),1,0.145
+g03_shared_sparse,LLM (adlar),26,0.9881
+g03_shared_sparse,LLM (adlar),51,0.9945
+g03_shared_sparse,LLM (adlar),76,0.9994
+g03_shared_sparse,LLM (adlar),100,1.0
+g03_shared_sparse,LLM (opak),1,0.145
+g03_shared_sparse,LLM (opak),26,0.9644
+g03_shared_sparse,LLM (opak),51,0.983
+g03_shared_sparse,LLM (opak),76,0.9912
+g03_shared_sparse,LLM (opak),100,0.9996
+g03_shared_sparse,Random,1,0.145
+g03_shared_sparse,Random,26,0.9584
+g03_shared_sparse,Random,51,0.9763
+g03_shared_sparse,Random,76,0.9812
+g03_shared_sparse,Random,100,0.9859
+g03_shared_sparse,SA,1,0.145
+g03_shared_sparse,SA,26,0.8558
+g03_shared_sparse,SA,51,0.8895
+g03_shared_sparse,SA,76,0.9269
+g03_shared_sparse,SA,100,0.9275
+g03_shared_sparse,Greedy,1,0.145
+g03_shared_sparse,Greedy,26,0.8267
+g03_shared_sparse,Greedy,51,0.8267
+g03_shared_sparse,Greedy,76,0.8267
+g03_shared_sparse,Greedy,100,0.8267
+g03_shared_sparse,NSGA-II,1,0.145
+g03_shared_sparse,NSGA-II,26,0.9567
+g03_shared_sparse,NSGA-II,51,0.9707
+g03_shared_sparse,NSGA-II,76,0.9824
+g03_shared_sparse,NSGA-II,100,0.9907
+g03_shared_sparse,Uzman kuralı,1,0.145
+g03_shared_sparse,Uzman kuralı,26,0.9262
+g03_shared_sparse,Uzman kuralı,51,0.9356
+g03_shared_sparse,Uzman kuralı,76,0.9968
+g03_shared_sparse,Uzman kuralı,100,0.9997
+g03_shared_sparse,LLM (geri bildirimsiz),1,0.145
+g03_shared_sparse,LLM (geri bildirimsiz),26,0.9861
+g03_shared_sparse,LLM (geri bildirimsiz),51,0.9915
+g03_shared_sparse,LLM (geri bildirimsiz),76,0.9922
+g03_shared_sparse,LLM (geri bildirimsiz),100,0.9948
+h01_invoicing,LLM (adlar),1,0.1001
+h01_invoicing,LLM (adlar),6,0.654
+h01_invoicing,LLM (adlar),11,0.707
+h01_invoicing,LLM (adlar),16,0.8824
+h01_invoicing,LLM (adlar),20,0.9845
+h01_invoicing,LLM (opak),1,0.1001
+h01_invoicing,LLM (opak),6,0.7336
+h01_invoicing,LLM (opak),11,0.8306
+h01_invoicing,LLM (opak),16,0.8648
+h01_invoicing,LLM (opak),20,0.8808
+h01_invoicing,Random,1,0.1001
+h01_invoicing,Random,6,0.6476
+h01_invoicing,Random,11,0.7532
+h01_invoicing,Random,16,0.8207
+h01_invoicing,Random,20,0.8602
+h01_invoicing,SA,1,0.1001
+h01_invoicing,SA,6,0.4607
+h01_invoicing,SA,11,0.5516
+h01_invoicing,SA,16,0.5821
+h01_invoicing,SA,20,0.6653
+h01_invoicing,Greedy,1,0.1001
+h01_invoicing,Greedy,6,0.403
+h01_invoicing,Greedy,11,0.4773
+h01_invoicing,Greedy,16,0.5391
+h01_invoicing,Greedy,20,0.5391
+h01_invoicing,NSGA-II,1,0.1001
+h01_invoicing,NSGA-II,6,0.6335
+h01_invoicing,NSGA-II,11,0.7415
+h01_invoicing,NSGA-II,16,0.8182
+h01_invoicing,NSGA-II,20,0.863
+h01_invoicing,Uzman kuralı,1,0.1001
+h01_invoicing,Uzman kuralı,6,0.3614
+h01_invoicing,Uzman kuralı,11,0.6943
+h01_invoicing,Uzman kuralı,16,0.9608
+h01_invoicing,Uzman kuralı,20,0.9608
+h01_invoicing,LLM (geri bildirimsiz),1,0.1001
+h01_invoicing,LLM (geri bildirimsiz),6,0.6971
+h01_invoicing,LLM (geri bildirimsiz),11,0.7814
+h01_invoicing,LLM (geri bildirimsiz),16,0.8492
+h01_invoicing,LLM (geri bildirimsiz),20,0.8573
+h02_inventory,LLM (adlar),1,0.1104
+h02_inventory,LLM (adlar),26,0.9878
+h02_inventory,LLM (adlar),51,0.9929
+h02_inventory,LLM (adlar),76,0.9998
+h02_inventory,LLM (adlar),100,1.0
+h02_inventory,LLM (opak),1,0.1104
+h02_inventory,LLM (opak),26,0.9268
+h02_inventory,LLM (opak),51,0.9946
+h02_inventory,LLM (opak),76,0.9997
+h02_inventory,LLM (opak),100,0.9999
+h02_inventory,Random,1,0.1104
+h02_inventory,Random,26,0.8411
+h02_inventory,Random,51,0.9174
+h02_inventory,Random,76,0.9383
+h02_inventory,Random,100,0.9664
+h02_inventory,SA,1,0.1104
+h02_inventory,SA,26,0.7809
+h02_inventory,SA,51,0.8107
+h02_inventory,SA,76,0.8784
+h02_inventory,SA,100,0.8841
+h02_inventory,Greedy,1,0.1104
+h02_inventory,Greedy,26,0.8749
+h02_inventory,Greedy,51,0.8749
+h02_inventory,Greedy,76,0.8749
+h02_inventory,Greedy,100,0.8749
+h02_inventory,NSGA-II,1,0.1104
+h02_inventory,NSGA-II,26,0.8666
+h02_inventory,NSGA-II,51,0.917
+h02_inventory,NSGA-II,76,0.9581
+h02_inventory,NSGA-II,100,0.9798
+h02_inventory,Uzman kuralı,1,0.1104
+h02_inventory,Uzman kuralı,26,0.9231
+h02_inventory,Uzman kuralı,51,0.9245
+h02_inventory,Uzman kuralı,76,0.9915
+h02_inventory,Uzman kuralı,100,0.9954
+h02_inventory,LLM (geri bildirimsiz),1,0.1104
+h02_inventory,LLM (geri bildirimsiz),26,0.9839
+h02_inventory,LLM (geri bildirimsiz),51,0.9908
+h02_inventory,LLM (geri bildirimsiz),76,0.9923
+h02_inventory,LLM (geri bildirimsiz),100,0.9938

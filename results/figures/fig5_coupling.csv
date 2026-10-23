@@ -1,0 +1,16 @@
+iş_yükü,grup,etkileşim_f1,etkileşim_f2,gürültü_f2,en_kuplajlı_çift_f2,çift_kazancı
+g03_shared_sparse,ortak önbellek,0.0015,0.2894,0.0,s2×s4,0.2891
+g04_shared_lowsel,ortak önbellek,0.1186,0.2785,0.0,s2×s4,0.2778
+g09_scale_60k,ortak önbellek,0.0,0.2742,0.00494,s2×s4,0.2734
+g02_shared_dense,ortak önbellek,0.0003,0.2739,0.0,s2×s4,0.2731
+g05_shared_twopairs,ortak önbellek,0.0001,0.2588,0.0,s3×s6,0.1835
+h02_inventory,el yazımı,0.0007,0.1166,0.0307,s4×s6,0.0359
+h03_interest,el yazımı,0.0,0.0961,0.0,s1×s4,0.0631
+h04_loyalty,el yazımı,0.0,0.0133,8e-05,s1×s4,0.0106
+h01_invoicing,el yazımı,0.0,0.0052,1e-05,s1×s5,0.0015
+g10_no_lookups,kontrol,0.0,0.0096,4e-05,s2×s3,0.0063
+g08_varchar_keys,kontrol,0.0,0.0051,0.0,s1×s2,0.0048
+pipeline_baseline,kontrol,0.0,0.0016,6e-05,s1×s3,0.001
+g06_three_refs,kontrol,0.0,0.0009,0.0,s5×s6,0.0003
+g01_pilot,kontrol,0.0,0.0001,0.0,s1×s4,0.0
+g07_wide_dense,kontrol,0.0,0.0001,0.0,s1×s4,0.0

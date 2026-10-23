@@ -1,0 +1,165 @@
+{
+  "size": 1000,
+  "canonical_size": 729,
+  "absorbing_alternatives": [
+    "SET_BASED"
+  ],
+  "sites": [
+    {
+      "id": "s1",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_S1 → G06_THREE_REFS_T1",
+      "line": 25,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_S1",
+        "shape": "DML",
+        "core_dml": "INSERT G06_THREE_REFS_T1",
+        "prelude": [
+          "LOOKUP L_S1_V1",
+          "ASSIGN L_S1_AMT"
+        ],
+        "counters": [
+          "L_ROWS"
+        ],
+        "record_fields_used": 6
+      }
+    },
+    {
+      "id": "s2",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "G06_THREE_REFS_R1.K",
+      "line": 30,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s1",
+      "excluded": {},
+      "summary": {
+        "table": "G06_THREE_REFS_R1",
+        "key_column": "K",
+        "value_columns": [
+          "V"
+        ],
+        "into": [
+          "L_S1_V1"
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_S2 → G06_THREE_REFS_T2",
+      "line": 40,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_S2",
+        "shape": "DML",
+        "core_dml": "INSERT G06_THREE_REFS_T2",
+        "prelude": [
+          "LOOKUP L_S2_V2",
+          "ASSIGN L_S2_AMT"
+        ],
+        "counters": [
+          "L_ROWS"
+        ],
+        "record_fields_used": 6
+      }
+    },
+    {
+      "id": "s4",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "G06_THREE_REFS_R2.K",
+      "line": 45,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s3",
+      "excluded": {},
+      "summary": {
+        "table": "G06_THREE_REFS_R2",
+        "key_column": "K",
+        "value_columns": [
+          "V"
+        ],
+        "into": [
+          "L_S2_V2"
+        ]
+      }
+    },
+    {
+      "id": "s5",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_S3 → G06_THREE_REFS_T3",
+      "line": 55,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_S3",
+        "shape": "DML",
+        "core_dml": "INSERT G06_THREE_REFS_T3",
+        "prelude": [
+          "LOOKUP L_S3_V3",
+          "ASSIGN L_S3_AMT"
+        ],
+        "counters": [
+          "L_ROWS"
+        ],
+        "record_fields_used": 6
+      }
+    },
+    {
+      "id": "s6",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "G06_THREE_REFS_R3.K",
+      "line": 60,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s5",
+      "excluded": {},
+      "summary": {
+        "table": "G06_THREE_REFS_R3",
+        "key_column": "K",
+        "value_columns": [
+          "V"
+        ],
+        "into": [
+          "L_S3_V3"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+karşılaştırma,iş_yükü,grup,A12,p_holm,anlamlı,medyan_IGD+_ilk,medyan_IGD+_ikinci
+LLM (adlar) vs Random,g02_shared_dense,ortak önbellek,1.0,4.26e-05,True,0.0003717,0.01414
+LLM (adlar) vs Random,g03_shared_sparse,ortak önbellek,1.0,4.26e-05,True,0,0.008309
+LLM (adlar) vs Random,g04_shared_lowsel,ortak önbellek,0.96,0.000121,True,0.0001825,0.01101
+LLM (adlar) vs Random,g05_shared_twopairs,ortak önbellek,0.98,6.64e-05,True,0.004926,0.0252
+LLM (adlar) vs Random,g09_scale_60k,ortak önbellek,1.0,4.26e-05,True,0.0006853,0.0131
+LLM (adlar) vs Random,h01_invoicing,el yazımı,0.957,0.000121,True,0.009769,0.07479
+LLM (adlar) vs Random,h02_inventory,el yazımı,1.0,4.26e-05,True,1.968e-05,0.03015
+LLM (adlar) vs Random,h03_interest,el yazımı,1.0,4.26e-05,True,0.01407,0.05049
+LLM (adlar) vs Random,h04_loyalty,el yazımı,0.857,0.00235,True,0.09209,0.158
+LLM (adlar) vs Random,g01_pilot,kontrol,0.547,0.673,False,0.03301,0.03278
+LLM (adlar) vs Random,g06_three_refs,kontrol,0.99,4.72e-05,True,0.0005883,0.004057
+LLM (adlar) vs Random,g07_wide_dense,kontrol,0.86,0.00235,True,0.008487,0.03845
+LLM (adlar) vs Random,g08_varchar_keys,kontrol,0.91,0.000517,True,0.01937,0.06033
+LLM (adlar) vs Random,g10_no_lookups,kontrol,0.973,7.84e-05,True,0.0001065,0.05622
+LLM (adlar) vs Random,pipeline_baseline,kontrol,0.933,0.000177,True,0.006564,0.2998
+LLM (adlar) vs NSGA-II,g02_shared_dense,ortak önbellek,0.99,5.82e-05,True,0.0003717,0.01215
+LLM (adlar) vs NSGA-II,g03_shared_sparse,ortak önbellek,0.99,5.82e-05,True,0,0.00632
+LLM (adlar) vs NSGA-II,g04_shared_lowsel,ortak önbellek,0.89,0.00109,True,0.0001825,0.006784
+LLM (adlar) vs NSGA-II,g05_shared_twopairs,ortak önbellek,1.0,4.43e-05,True,0.004926,0.02939
+LLM (adlar) vs NSGA-II,g09_scale_60k,ortak önbellek,0.97,0.000114,True,0.0006853,0.01159
+LLM (adlar) vs NSGA-II,h01_invoicing,el yazımı,0.957,0.000141,True,0.009769,0.07748
+LLM (adlar) vs NSGA-II,h02_inventory,el yazımı,1.0,4.43e-05,True,1.968e-05,0.0173
+LLM (adlar) vs NSGA-II,h03_interest,el yazımı,0.967,0.000114,True,0.01407,0.1044
+LLM (adlar) vs NSGA-II,h04_loyalty,el yazımı,0.78,0.0182,True,0.09209,0.1409
+LLM (adlar) vs NSGA-II,g01_pilot,kontrol,0.707,0.0547,False,0.03301,0.0395
+LLM (adlar) vs NSGA-II,g06_three_refs,kontrol,0.97,0.000114,True,0.0005883,0.002909
+LLM (adlar) vs NSGA-II,g07_wide_dense,kontrol,0.82,0.00855,True,0.008487,0.03636
+LLM (adlar) vs NSGA-II,g08_varchar_keys,kontrol,0.9,0.000942,True,0.01937,0.0633
+LLM (adlar) vs NSGA-II,g10_no_lookups,kontrol,0.973,0.000108,True,0.0001065,0.09899
+LLM (adlar) vs NSGA-II,pipeline_baseline,kontrol,0.917,0.000453,True,0.006564,0.3015
+LLM (adlar) vs Uzman kuralı,g02_shared_dense,ortak önbellek,0.875,0.00459,True,0.0003717,0.002091
+LLM (adlar) vs Uzman kuralı,g03_shared_sparse,ortak önbellek,0.828,0.0159,True,0,0.0004075
+LLM (adlar) vs Uzman kuralı,g04_shared_lowsel,ortak önbellek,0.727,0.166,False,0.0001825,0.002181
+LLM (adlar) vs Uzman kuralı,g05_shared_twopairs,ortak önbellek,1.0,2.32e-05,True,0.004926,0.03973
+LLM (adlar) vs Uzman kuralı,g09_scale_60k,ortak önbellek,0.767,0.104,False,0.0006853,0.002461
+LLM (adlar) vs Uzman kuralı,h01_invoicing,el yazımı,0.9,1.28e-05,True,0.009769,0.02155
+LLM (adlar) vs Uzman kuralı,h02_inventory,el yazımı,1.0,1.91e-05,True,1.968e-05,0.005945
+LLM (adlar) vs Uzman kuralı,h03_interest,el yazımı,0.0,1.75e-06,True,0.01407,0.0001801
+LLM (adlar) vs Uzman kuralı,h04_loyalty,el yazımı,0.5,1,False,0.09209,0.08462
+LLM (adlar) vs Uzman kuralı,g01_pilot,kontrol,0.253,0.117,False,0.03301,0.03012
+LLM (adlar) vs Uzman kuralı,g06_three_refs,kontrol,0.7,0.104,False,0.0005883,0.0005898
+LLM (adlar) vs Uzman kuralı,g07_wide_dense,kontrol,0.7,0.236,False,0.008487,0.03142
+LLM (adlar) vs Uzman kuralı,g08_varchar_keys,kontrol,1.0,1.55e-05,True,0.01937,0.08425
+LLM (adlar) vs Uzman kuralı,g10_no_lookups,kontrol,0.442,1,False,0.0001065,8.986e-05
+LLM (adlar) vs Uzman kuralı,pipeline_baseline,kontrol,0.5,1,False,0.006564,0.006564
+LLM (adlar) vs LLM (geri bildirimsiz),g02_shared_dense,ortak önbellek,0.91,0.0144,True,0.0003717,0.003729
+LLM (adlar) vs LLM (geri bildirimsiz),g03_shared_sparse,ortak önbellek,0.95,0.00765,True,0,0.004293
+LLM (adlar) vs LLM (geri bildirimsiz),g04_shared_lowsel,ortak önbellek,0.95,0.008,True,0.0001825,0.009657
+LLM (adlar) vs LLM (geri bildirimsiz),g05_shared_twopairs,ortak önbellek,0.955,0.00792,True,0.004926,0.006407
+LLM (adlar) vs LLM (geri bildirimsiz),g09_scale_60k,ortak önbellek,0.94,0.008,True,0.0006853,0.004404
+LLM (adlar) vs LLM (geri bildirimsiz),h01_invoicing,el yazımı,0.95,0.008,True,0.009769,0.09014
+LLM (adlar) vs LLM (geri bildirimsiz),h02_inventory,el yazımı,1.0,0.00245,True,1.968e-05,0.005469
+LLM (adlar) vs LLM (geri bildirimsiz),h03_interest,el yazımı,0.88,0.0144,True,0.01407,0.01418
+LLM (adlar) vs LLM (geri bildirimsiz),h04_loyalty,el yazımı,0.615,0.404,False,0.09209,0.1017
+LLM (adlar) vs LLM (geri bildirimsiz),g01_pilot,kontrol,0.785,0.112,False,0.03301,0.03502
+LLM (adlar) vs LLM (geri bildirimsiz),g06_three_refs,kontrol,0.68,0.37,False,0.0005883,0.000991
+LLM (adlar) vs LLM (geri bildirimsiz),g07_wide_dense,kontrol,0.795,0.112,False,0.008487,0.03598
+LLM (adlar) vs LLM (geri bildirimsiz),g08_varchar_keys,kontrol,0.99,0.00323,True,0.01937,0.08748
+LLM (adlar) vs LLM (geri bildirimsiz),g10_no_lookups,kontrol,0.94,0.008,True,0.0001065,0.02378
+LLM (adlar) vs LLM (geri bildirimsiz),pipeline_baseline,kontrol,0.25,0.0734,False,0.006564,0.005203
+LLM (geri bildirimsiz) vs Uzman kuralı,g02_shared_dense,ortak önbellek,0.403,0.41,False,0.003729,0.002091
+LLM (geri bildirimsiz) vs Uzman kuralı,g03_shared_sparse,ortak önbellek,0.11,0.00133,True,0.004293,0.0004075
+LLM (geri bildirimsiz) vs Uzman kuralı,g04_shared_lowsel,ortak önbellek,0.0,2.91e-05,True,0.009657,0.002181
+LLM (geri bildirimsiz) vs Uzman kuralı,g05_shared_twopairs,ortak önbellek,1.0,2.74e-05,True,0.006407,0.03973
+LLM (geri bildirimsiz) vs Uzman kuralı,g09_scale_60k,ortak önbellek,0.363,0.41,False,0.004404,0.002461
+LLM (geri bildirimsiz) vs Uzman kuralı,h01_invoicing,el yazımı,0.1,1.29e-05,True,0.09014,0.02155
+LLM (geri bildirimsiz) vs Uzman kuralı,h02_inventory,el yazımı,0.753,0.0727,False,0.005469,0.005945
+LLM (geri bildirimsiz) vs Uzman kuralı,h03_interest,el yazımı,0.0,1.77e-06,True,0.01418,0.0001801
+LLM (geri bildirimsiz) vs Uzman kuralı,h04_loyalty,el yazımı,0.08,0.000551,True,0.1017,0.08462
+LLM (geri bildirimsiz) vs Uzman kuralı,g01_pilot,kontrol,0.1,0.00105,True,0.03502,0.03012
+LLM (geri bildirimsiz) vs Uzman kuralı,g06_three_refs,kontrol,0.3,0.0727,False,0.000991,0.0005898
+LLM (geri bildirimsiz) vs Uzman kuralı,g07_wide_dense,kontrol,0.01,3.31e-05,True,0.03598,0.03142
+LLM (geri bildirimsiz) vs Uzman kuralı,g08_varchar_keys,kontrol,0.26,0.0727,False,0.08748,0.08425
+LLM (geri bildirimsiz) vs Uzman kuralı,g10_no_lookups,kontrol,0.003,2.91e-05,True,0.02378,8.986e-05
+LLM (geri bildirimsiz) vs Uzman kuralı,pipeline_baseline,kontrol,0.75,0.000457,True,0.005203,0.006564
+LLM (opak) vs Random,g02_shared_dense,ortak önbellek,0.677,0.947,False,0.008938,0.01414
+LLM (opak) vs Random,g03_shared_sparse,ortak önbellek,1.0,4.42e-05,True,0.0003823,0.008309
+LLM (opak) vs Random,g04_shared_lowsel,ortak önbellek,0.68,0.947,False,0.001852,0.01101
+LLM (opak) vs Random,g05_shared_twopairs,ortak önbellek,0.633,1,False,0.0171,0.0252
+LLM (opak) vs Random,g09_scale_60k,ortak önbellek,0.553,1,False,0.01089,0.0131
+LLM (opak) vs Random,h01_invoicing,el yazımı,0.717,0.489,False,0.06313,0.07479
+LLM (opak) vs Random,h02_inventory,el yazımı,1.0,4.42e-05,True,3.936e-05,0.03015
+LLM (opak) vs Random,h03_interest,el yazımı,0.547,1,False,0.04539,0.05049
+LLM (opak) vs Random,h04_loyalty,el yazımı,0.627,1,False,0.1206,0.158
+LLM (opak) vs Random,g01_pilot,kontrol,0.433,1,False,0.04156,0.03278
+LLM (opak) vs Random,g06_three_refs,kontrol,0.893,0.00313,True,4.704e-05,0.004057
+LLM (opak) vs Random,g07_wide_dense,kontrol,0.62,1,False,0.02123,0.03845
+LLM (opak) vs Random,g08_varchar_keys,kontrol,0.513,1,False,0.039,0.06033
+LLM (opak) vs Random,g10_no_lookups,kontrol,0.72,0.489,False,0.02795,0.05622
+LLM (opak) vs Random,pipeline_baseline,kontrol,0.648,1,False,0.299,0.2998

@@ -1,0 +1,17 @@
+metrik,koşul,ortalama_sıra,chi2,p,CD,iş_yükü
+IGD+,LLM (adlar),1.3,87.46,4.10e-16,2.711,15
+IGD+,Uzman kuralı,2.633,87.46,4.10e-16,2.711,15
+IGD+,LLM (geri bildirimsiz),3.067,87.46,4.10e-16,2.711,15
+IGD+,LLM (opak),3.733,87.46,4.10e-16,2.711,15
+IGD+,Random,5.067,87.46,4.10e-16,2.711,15
+IGD+,NSGA-II,5.267,87.46,4.10e-16,2.711,15
+IGD+,SA,7.267,87.46,4.10e-16,2.711,15
+IGD+,Greedy,7.667,87.46,4.10e-16,2.711,15
+HV oranı,LLM (adlar),1.433,81.46,6.94e-15,2.711,15
+HV oranı,Uzman kuralı,2.767,81.46,6.94e-15,2.711,15
+HV oranı,LLM (geri bildirimsiz),2.867,81.46,6.94e-15,2.711,15
+HV oranı,LLM (opak),3.867,81.46,6.94e-15,2.711,15
+HV oranı,Random,5.067,81.46,6.94e-15,2.711,15
+HV oranı,NSGA-II,5.333,81.46,6.94e-15,2.711,15
+HV oranı,SA,7.267,81.46,6.94e-15,2.711,15
+HV oranı,Greedy,7.4,81.46,6.94e-15,2.711,15

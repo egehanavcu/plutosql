@@ -1,0 +1,134 @@
+{
+  "size": 200,
+  "canonical_size": 165,
+  "absorbing_alternatives": [
+    "SET_BASED"
+  ],
+  "sites": [
+    {
+      "id": "s1",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_LINES → H01_INVOICE_LINES",
+      "line": 23,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_LINES",
+        "shape": "DML",
+        "core_dml": "INSERT H01_INVOICE_LINES",
+        "prelude": [
+          "LOOKUP L_PRICE",
+          "LOOKUP L_DISCOUNT",
+          "LOOKUP L_VAT",
+          "ASSIGN L_NET"
+        ],
+        "counters": [
+          "L_LINES_DONE"
+        ],
+        "record_fields_used": 6
+      }
+    },
+    {
+      "id": "s2",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "H01_PRODUCTS.PRODUCT_ID",
+      "line": 28,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s1",
+      "excluded": {},
+      "summary": {
+        "table": "H01_PRODUCTS",
+        "key_column": "PRODUCT_ID",
+        "value_columns": [
+          "LIST_PRICE"
+        ],
+        "into": [
+          "L_PRICE"
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "H01_CUSTOMERS.CUSTOMER_ID",
+      "line": 29,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s1",
+      "excluded": {},
+      "summary": {
+        "table": "H01_CUSTOMERS",
+        "key_column": "CUSTOMER_ID",
+        "value_columns": [
+          "DISCOUNT_PCT"
+        ],
+        "into": [
+          "L_DISCOUNT"
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "H01_TAX_RATES.CATEGORY",
+      "line": 30,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s1",
+      "excluded": {},
+      "summary": {
+        "table": "H01_TAX_RATES",
+        "key_column": "CATEGORY",
+        "value_columns": [
+          "VAT_PCT"
+        ],
+        "into": [
+          "L_VAT"
+        ]
+      }
+    },
+    {
+      "id": "s5",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_TOTALS → H01_CUSTOMER_BALANCE",
+      "line": 42,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_TOTALS",
+        "shape": "UPSERT",
+        "core_dml": "UPDATE H01_CUSTOMER_BALANCE",
+        "prelude": [],
+        "counters": [],
+        "record_fields_used": 3,
+        "upsert_insert": "INSERT H01_CUSTOMER_BALANCE"
+      }
+    }
+  ]
+}

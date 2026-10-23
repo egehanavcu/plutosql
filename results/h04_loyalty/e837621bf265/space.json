@@ -1,0 +1,108 @@
+{
+  "size": 100,
+  "canonical_size": 85,
+  "absorbing_alternatives": [
+    "SET_BASED"
+  ],
+  "sites": [
+    {
+      "id": "s1",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_TXN → H04_POINT_EVENTS",
+      "line": 21,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_TXN",
+        "shape": "DML",
+        "core_dml": "INSERT H04_POINT_EVENTS",
+        "prelude": [
+          "LOOKUP L_BONUS",
+          "LOOKUP L_MULT",
+          "ASSIGN L_POINTS"
+        ],
+        "counters": [],
+        "record_fields_used": 5
+      }
+    },
+    {
+      "id": "s2",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "H04_MERCHANTS.MERCHANT_ID",
+      "line": 26,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s1",
+      "excluded": {},
+      "summary": {
+        "table": "H04_MERCHANTS",
+        "key_column": "MERCHANT_ID",
+        "value_columns": [
+          "BONUS_PCT"
+        ],
+        "into": [
+          "L_BONUS"
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "H04_CAMPAIGNS.MCC",
+      "line": 27,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s1",
+      "excluded": {},
+      "summary": {
+        "table": "H04_CAMPAIGNS",
+        "key_column": "MCC",
+        "value_columns": [
+          "MULTIPLIER"
+        ],
+        "into": [
+          "L_MULT"
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_CUST → H04_LOYALTY_BALANCE",
+      "line": 37,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_CUST",
+        "shape": "UPSERT",
+        "core_dml": "UPDATE H04_LOYALTY_BALANCE",
+        "prelude": [],
+        "counters": [],
+        "record_fields_used": 3,
+        "upsert_insert": "INSERT H04_LOYALTY_BALANCE"
+      }
+    }
+  ]
+}

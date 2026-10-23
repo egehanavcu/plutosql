@@ -1,0 +1,161 @@
+{
+  "size": 1000,
+  "canonical_size": 765,
+  "absorbing_alternatives": [
+    "SET_BASED"
+  ],
+  "sites": [
+    {
+      "id": "s1",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_MOVES → H02_MOVEMENT_COSTED",
+      "line": 30,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_MOVES",
+        "shape": "DML",
+        "core_dml": "INSERT H02_MOVEMENT_COSTED",
+        "prelude": [
+          "LOOKUP L_UNIT_COST",
+          "LOOKUP L_HANDLING"
+        ],
+        "counters": [],
+        "record_fields_used": 4
+      }
+    },
+    {
+      "id": "s2",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "H02_ITEMS.ITEM_ID",
+      "line": 35,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s1",
+      "excluded": {},
+      "summary": {
+        "table": "H02_ITEMS",
+        "key_column": "ITEM_ID",
+        "value_columns": [
+          "UNIT_COST"
+        ],
+        "into": [
+          "L_UNIT_COST"
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "H02_WAREHOUSES.WAREHOUSE_ID",
+      "line": 36,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s1",
+      "excluded": {},
+      "summary": {
+        "table": "H02_WAREHOUSES",
+        "key_column": "WAREHOUSE_ID",
+        "value_columns": [
+          "HANDLING_PCT"
+        ],
+        "into": [
+          "L_HANDLING"
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_NET → H02_STOCK_LEVELS",
+      "line": 45,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_NET",
+        "shape": "UPSERT",
+        "core_dml": "UPDATE H02_STOCK_LEVELS",
+        "prelude": [],
+        "counters": [],
+        "record_fields_used": 4,
+        "upsert_insert": "INSERT H02_STOCK_LEVELS"
+      }
+    },
+    {
+      "id": "s5",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_SHORT → H02_REORDER_PROPOSALS",
+      "line": 64,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_SHORT",
+        "shape": "DML",
+        "core_dml": "INSERT H02_REORDER_PROPOSALS",
+        "prelude": [
+          "LOOKUP L_SUPPLIER,L_COST",
+          "ASSIGN L_ORDER_QTY"
+        ],
+        "counters": [
+          "L_PROPOSALS"
+        ],
+        "record_fields_used": 4
+      }
+    },
+    {
+      "id": "s6",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "H02_ITEMS.ITEM_ID",
+      "line": 69,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s5",
+      "excluded": {},
+      "summary": {
+        "table": "H02_ITEMS",
+        "key_column": "ITEM_ID",
+        "value_columns": [
+          "SUPPLIER_ID",
+          "UNIT_COST"
+        ],
+        "into": [
+          "L_SUPPLIER",
+          "L_COST"
+        ]
+      }
+    }
+  ]
+}

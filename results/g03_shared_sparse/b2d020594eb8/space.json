@@ -1,0 +1,162 @@
+{
+  "size": 1000,
+  "canonical_size": 765,
+  "absorbing_alternatives": [
+    "SET_BASED"
+  ],
+  "sites": [
+    {
+      "id": "s1",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_S1 → G03_SHARED_SPARSE_T1",
+      "line": 26,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_S1",
+        "shape": "DML",
+        "core_dml": "INSERT G03_SHARED_SPARSE_T1",
+        "prelude": [
+          "LOOKUP L_S1_V1",
+          "ASSIGN L_S1_AMT"
+        ],
+        "counters": [
+          "L_ROWS"
+        ],
+        "record_fields_used": 5
+      }
+    },
+    {
+      "id": "s2",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "G03_SHARED_SPARSE_R1.K",
+      "line": 31,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s1",
+      "excluded": {},
+      "summary": {
+        "table": "G03_SHARED_SPARSE_R1",
+        "key_column": "K",
+        "value_columns": [
+          "V"
+        ],
+        "into": [
+          "L_S1_V1"
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_S2 → G03_SHARED_SPARSE_T2",
+      "line": 41,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_S2",
+        "shape": "DML",
+        "core_dml": "INSERT G03_SHARED_SPARSE_T2",
+        "prelude": [
+          "LOOKUP L_S2_V1",
+          "LOOKUP L_S2_V2",
+          "ASSIGN L_S2_AMT"
+        ],
+        "counters": [
+          "L_ROWS"
+        ],
+        "record_fields_used": 5
+      }
+    },
+    {
+      "id": "s4",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "G03_SHARED_SPARSE_R1.K",
+      "line": 46,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s3",
+      "excluded": {},
+      "summary": {
+        "table": "G03_SHARED_SPARSE_R1",
+        "key_column": "K",
+        "value_columns": [
+          "V"
+        ],
+        "into": [
+          "L_S2_V1"
+        ]
+      }
+    },
+    {
+      "id": "s5",
+      "pattern": "P2_LOOP_LOOKUP",
+      "name": "G03_SHARED_SPARSE_R2.K",
+      "line": 47,
+      "alternatives": [
+        "LOOKUP_SQL",
+        "LOOKUP_CACHE"
+      ],
+      "default": "LOOKUP_SQL",
+      "parent": "s3",
+      "excluded": {},
+      "summary": {
+        "table": "G03_SHARED_SPARSE_R2",
+        "key_column": "K",
+        "value_columns": [
+          "V"
+        ],
+        "into": [
+          "L_S2_V2"
+        ]
+      }
+    },
+    {
+      "id": "s6",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_S3 → G03_SHARED_SPARSE_T3",
+      "line": 57,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_S3",
+        "shape": "UPSERT",
+        "core_dml": "UPDATE G03_SHARED_SPARSE_T3",
+        "prelude": [],
+        "counters": [],
+        "record_fields_used": 3,
+        "upsert_insert": "INSERT G03_SHARED_SPARSE_T3"
+      }
+    }
+  ]
+}

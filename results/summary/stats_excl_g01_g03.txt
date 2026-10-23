@@ -1,0 +1,29 @@
+koşullar: ['expert', 'greedy', 'llm_named', 'llm_opaque', 'nsga2', 'random', 'sa']; iş yükleri: 13; koşu: 8060
+hariç tutulan iş yükleri: ['g01_pilot', 'g03_shared_sparse']
+
+=== Friedman (igd_plus, iş yükü ortalamaları; ortalama sıra, 1 = en iyi) ===
+ρ=0.1 [klasik] N=13 χ²= 41.8 p=1.8e-08 CD=1.69  expert=1.31  random=2.23  nsga2=2.54  sa=4.23  greedy=4.69
+ρ=0.1 [tümü  ] N=13 χ²= 66.1 p=2.6e-12 CD=2.50  llm_named=1.27  expert=2.27  llm_opaque=3.08  random=4.08  nsga2=4.38  sa=6.23  greedy=6.69
+ρ=0.2 [klasik] N=13 χ²= 36.5 p=2.3e-07 CD=1.69  expert=1.23  nsga2=2.54  random=2.69  sa=3.85  greedy=4.69
+ρ=0.3 [klasik] N=13 χ²= 40.7 p=3e-08 CD=1.69  expert=1.23  nsga2=2.15  random=2.92  sa=3.92  greedy=4.77
+ρ=0.4 [klasik] N=13 χ²= 39.6 p=5.3e-08 CD=1.69  expert=1.15  nsga2=2.31  random=3.00  sa=3.77  greedy=4.77
+
+=== Friedman (hv_ratio, iş yükü ortalamaları; ortalama sıra, 1 = en iyi) ===
+ρ=0.1 [klasik] N=13 χ²= 37.6 p=1.4e-07 CD=1.69  expert=1.38  random=2.23  nsga2=2.62  sa=4.23  greedy=4.54
+ρ=0.1 [tümü  ] N=13 χ²= 60.8 p=3.2e-11 CD=2.50  llm_named=1.35  expert=2.35  llm_opaque=3.31  random=3.92  nsga2=4.31  sa=6.23  greedy=6.54
+ρ=0.2 [klasik] N=13 χ²= 37.2 p=1.6e-07 CD=1.69  expert=1.23  nsga2=2.54  random=2.69  sa=3.77  greedy=4.77
+ρ=0.3 [klasik] N=13 χ²= 42.9 p=1.1e-08 CD=1.69  expert=1.15  nsga2=2.08  random=3.08  sa=3.92  greedy=4.77
+ρ=0.4 [klasik] N=13 χ²= 40.2 p=4e-08 CD=1.69  expert=1.15  nsga2=2.23  random=3.08  sa=3.77  greedy=4.77
+
+=== Çift karşılaştırmalar (IGD+; Mann–Whitney U, Holm; A12 = P(ilk koşul daha iyi)) ===
+  llm_named vs random      ρ=0.1: 13 iş yükü | anlamlı iyi 13, anlamlı kötü  0, fark yok  0 | medyan A12=0.97 (büyük)
+  llm_named vs sa          ρ=0.1: 13 iş yükü | anlamlı iyi 13, anlamlı kötü  0, fark yok  0 | medyan A12=1.00 (büyük)
+  llm_named vs greedy      ρ=0.1: 13 iş yükü | anlamlı iyi 13, anlamlı kötü  0, fark yok  0 | medyan A12=1.00 (büyük)
+  llm_named vs nsga2       ρ=0.1: 13 iş yükü | anlamlı iyi 13, anlamlı kötü  0, fark yok  0 | medyan A12=0.97 (büyük)
+  llm_named vs expert      ρ=0.1: 13 iş yükü | anlamlı iyi  5, anlamlı kötü  1, fark yok  7 | medyan A12=0.73 (büyük)
+ llm_opaque vs random      ρ=0.1: 13 iş yükü | anlamlı iyi  2, anlamlı kötü  0, fark yok 11 | medyan A12=0.65 (orta)
+ llm_opaque vs sa          ρ=0.1: 13 iş yükü | anlamlı iyi 13, anlamlı kötü  0, fark yok  0 | medyan A12=0.86 (büyük)
+ llm_opaque vs greedy      ρ=0.1: 13 iş yükü | anlamlı iyi 12, anlamlı kötü  0, fark yok  1 | medyan A12=1.00 (büyük)
+ llm_opaque vs nsga2       ρ=0.1: 13 iş yükü | anlamlı iyi  3, anlamlı kötü  0, fark yok 10 | medyan A12=0.68 (orta)
+ llm_opaque vs expert      ρ=0.1: 13 iş yükü | anlamlı iyi  2, anlamlı kötü  3, fark yok  8 | medyan A12=0.30 (orta)
+  llm_named vs llm_opaque  ρ=0.1: 13 iş yükü | anlamlı iyi  6, anlamlı kötü  0, fark yok  7 | medyan A12=0.84 (büyük)

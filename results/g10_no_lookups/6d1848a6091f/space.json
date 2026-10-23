@@ -1,0 +1,90 @@
+{
+  "size": 125,
+  "canonical_size": 125,
+  "absorbing_alternatives": [
+    "SET_BASED"
+  ],
+  "sites": [
+    {
+      "id": "s1",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_S1 → G10_NO_LOOKUPS_T1",
+      "line": 23,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_S1",
+        "shape": "DML",
+        "core_dml": "INSERT G10_NO_LOOKUPS_T1",
+        "prelude": [
+          "ASSIGN L_S1_AMT"
+        ],
+        "counters": [
+          "L_ROWS"
+        ],
+        "record_fields_used": 3
+      }
+    },
+    {
+      "id": "s2",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_S2 → G10_NO_LOOKUPS_T2",
+      "line": 37,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_S2",
+        "shape": "DML",
+        "core_dml": "INSERT G10_NO_LOOKUPS_T2",
+        "prelude": [
+          "ASSIGN L_S2_AMT"
+        ],
+        "counters": [
+          "L_ROWS"
+        ],
+        "record_fields_used": 3
+      }
+    },
+    {
+      "id": "s3",
+      "pattern": "P1_ROW_DML_LOOP",
+      "name": "C_S3 → G10_NO_LOOKUPS_T3",
+      "line": 51,
+      "alternatives": [
+        "ROW",
+        "BULK_50",
+        "BULK_500",
+        "BULK_5000",
+        "SET_BASED"
+      ],
+      "default": "ROW",
+      "parent": null,
+      "excluded": {},
+      "summary": {
+        "cursor": "C_S3",
+        "shape": "UPSERT",
+        "core_dml": "UPDATE G10_NO_LOOKUPS_T3",
+        "prelude": [],
+        "counters": [],
+        "record_fields_used": 3,
+        "upsert_insert": "INSERT G10_NO_LOOKUPS_T3"
+      }
+    }
+  ]
+}
