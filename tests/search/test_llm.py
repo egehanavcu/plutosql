@@ -90,7 +90,10 @@ def test_duplicate_answer_is_retried_with_feedback_then_falls_back(space, record
     result = LLMPolicy(client=client, max_retries=2).run(ev, seed=1)
     assert result.meta["retries"] == 2 and result.meta["fallbacks"] == 1
     second = result.meta["decisions"][1]
-    assert second["source"] == "fallback" and len(second["feedback"]) == 3
+    assert second["source"] == "fallback_neighbor" and len(second["feedback"]) == 3
+    # komşu: LLM'in son (ham) önerisinden tek site farkı
+    proposal = {"s1": "SET_BASED", "s2": "LOOKUP_CACHE", "s3": "ROW"}
+    assert sum(second["config"][k] != v for k, v in proposal.items()) == 1
     assert "equivalent to an already evaluated" in client.calls[2]["prompt"]
     assert len({tuple(space.canonicalize(e.config).values()) for e in result.history}) == 3
 
@@ -262,3 +265,49 @@ def test_random_client_drives_policy_for_estimates(space, records):
         result = LLMPolicy(client=RandomClient(seed=1), proposals=k, history="compact").run(ev, seed=0)
         assert ev.budget_used == 8 and result.meta["prompt_chars"] > 0
         assert result.meta["malformed"] == 0
+
+
+def test_projection_replaces_duplicates_with_unseen_neighbours(space, records):
+    dup = {"s1": "ROW", "s2": "LOOKUP_SQL", "s3": "ROW"}                 # orijinal: zaten değerlendirildi
+    new = {"s1": "BULK_50", "s2": "LOOKUP_SQL", "s3": "ROW"}
+    client = ScriptedClient([many(dup, new, new)])
+    ev = replay(space, records, budget=4)
+    result = LLMPolicy(client=client, proposals=3, project=True).run(ev, seed=0)
+    sources = [d["source"] for d in result.meta["decisions"]]
+    assert sources == ["llm_projected", "llm", "llm_projected"]
+    assert result.meta["projected"] == 2 and result.meta["retries"] == 0 and len(client.calls) == 1
+    keys = [tuple(space.canonicalize(e.config).values()) for e in result.history]
+    assert len(keys) == len(set(keys)) == 4                                  # hepsi yeni
+    first = result.meta["decisions"][0]["config"]
+    assert sum(first[k] != v for k, v in dup.items()) == 1                   # tekrarın komşusu
+
+
+def test_projection_off_keeps_previous_behaviour(space, records):
+    client = ScriptedClient([many({"s1": "ROW", "s2": "LOOKUP_SQL", "s3": "ROW"},
+                                  {"s1": "BULK_50", "s2": "LOOKUP_SQL", "s3": "ROW"})])
+    result = LLMPolicy(client=client, proposals=2).run(replay(space, records, budget=2), seed=0)
+    assert [d["source"] for d in result.meta["decisions"]] == ["llm"] and "projected" not in result.meta
+
+
+def test_blind_history_hides_measurements_but_lists_evaluated(space, records):
+    from plutosql.search.llm import BLIND_SYSTEM_PROMPT, SYSTEM_PROMPT
+
+    ev = replay(space, records, budget=8)
+    ev.evaluate(space.default())
+    ev.evaluate({"s1": "BULK_50", "s2": "LOOKUP_CACHE", "s3": "ROW"})
+    prompt = build_prompt(ev, [], history="blind")
+    assert "s1=BULK_50 s2=LOOKUP_CACHE s3=ROW" in prompt
+    assert "f1=" not in prompt and "PARETO" not in prompt and "% of original" not in prompt
+    assert "Per-site effects" not in prompt
+
+    client = ScriptedClient([answer(s1="SET_BASED", s2="LOOKUP_SQL", s3="ROW")] * 3)
+    LLMPolicy(client=client, history="blind").run(replay(space, records, 2), seed=0)
+    system = client.calls[0]["system"]
+    assert system != SYSTEM_PROMPT.split("{hints}")[0] and "NOT shown" in system
+    assert "LOOKUP_CACHE: the lookup table" in system           # ipuçları korunur
+    assert "f1=" not in client.calls[0]["prompt"]
+
+
+def test_blind_with_opaque_labels_is_rejected(space, records):
+    with pytest.raises(ValueError):
+        LLMPolicy(client=ScriptedClient([]), history="blind", opaque_labels=True).run(replay(space, records, 2), 0)

@@ -31,7 +31,7 @@ from plutosql.harness.evaluator import Evaluation
 
 from plutosql.transformer.sites import ABSORBING_ALTERNATIVES
 
-from .base import EvaluatorLike, SearchAlgorithm, archive_of
+from .base import EvaluatorLike, SearchAlgorithm, archive_of, neighbors
 
 # ================================================================ istemciler
 
@@ -51,16 +51,28 @@ class LLMClient(Protocol):
 
 
 class GeminiClient:
-    """Gemini API (google-genai). JSON şemasıyla kısıtlı çıktı; 429/5xx'te üstel geri çekilme."""
+    """Gemini API (google-genai). JSON şemasıyla kısıtlı çıktı.
 
-    def __init__(self, model: str, api_key: str, max_attempts: int = 6, thinking_budget: int | None = None):
+    Her isteğin zaman aşımı vardır (takılan bir bağlantı koşuyu süresiz bekletmesin); 429/5xx, zaman aşımı
+    ve ağ hatalarında üstel geri çekilmeyle yeniden denenir.
+    """
+
+    def __init__(self, model: str, api_key: str, max_attempts: int = 6, thinking_budget: int | None = None,
+                 timeout_s: float = 120.0, thinking_level: str | None = None):
         from google import genai                                  # isteğe bağlı bağımlılık
+        from google.genai import types
 
         self.model = model
         self.max_attempts = max_attempts
         self.thinking_budget = thinking_budget
+        self.thinking_level = thinking_level                      # MINIMAL | LOW | MEDIUM | HIGH (düşünmeye üst sınır)
+        # Yanıtı etkileyen ayarlar (önbellek anahtarına girer; zaman aşımı girmez). Geriye uyum için
+        # thinking_level yalnızca verildiğinde eklenir: eski önbellek anahtarları değişmez.
         self.settings = {"thinking_budget": thinking_budget}
-        self._client = genai.Client(api_key=api_key)
+        if thinking_level is not None:
+            self.settings["thinking_level"] = thinking_level
+        self._client = genai.Client(api_key=api_key,
+                                    http_options=types.HttpOptions(timeout=int(timeout_s * 1000)))
 
     @classmethod
     def from_env(cls, model: str | None = None, **kw) -> "GeminiClient":
@@ -72,6 +84,7 @@ class GeminiClient:
         return cls(model or env_value("GEMINI_MODEL", "gemini-3.8-flash"), key, **kw)
 
     def complete(self, system: str, prompt: str, schema: dict, *, temperature: float, seed: int) -> LLMReply:
+        import httpx
         from google.genai import errors, types
 
         config = types.GenerateContentConfig(
@@ -83,10 +96,14 @@ class GeminiClient:
         )
         if self.thinking_budget is not None:
             config.thinking_config = types.ThinkingConfig(thinking_budget=self.thinking_budget)
+        elif self.thinking_level is not None:
+            config.thinking_config = types.ThinkingConfig(thinking_level=self.thinking_level)
 
         delay = 2.0
+        used_seed = seed
         for attempt in range(1, self.max_attempts + 1):
             try:
+                config.seed = used_seed
                 resp = self._client.models.generate_content(model=self.model, contents=prompt, config=config)
                 usage = resp.usage_metadata
                 return LLMReply(
@@ -95,12 +112,23 @@ class GeminiClient:
                         "prompt_tokens": getattr(usage, "prompt_token_count", None),
                         "output_tokens": getattr(usage, "candidates_token_count", None),
                         "thought_tokens": getattr(usage, "thoughts_token_count", None),
+                        "seed_used": used_seed,
+                        "attempts": attempt,
                     },
                 )
-            except errors.APIError as e:
-                retryable = e.code == 429 or (e.code is not None and e.code >= 500)
+            except (errors.APIError, httpx.TimeoutException, httpx.TransportError) as e:
+                runaway = (isinstance(e, httpx.TimeoutException)
+                           or (isinstance(e, errors.APIError) and e.code == 504))
+                if isinstance(e, errors.APIError):
+                    retryable = e.code == 429 or (e.code is not None and e.code >= 500)
+                else:
+                    retryable = True                              # zaman aşımı / bağlantı hatası
                 if not retryable or attempt == self.max_attempts:
                     raise
+                if runaway:
+                    # Aşırı uzun düşünme tohuma bağlı: aynı tohumla tekrar aynı yanıtı üretir. Tohumu
+                    # deterministik biçimde değiştir (kullanılan tohum yanıtla birlikte kaydedilir).
+                    used_seed = (seed + 1_000_003 * attempt) & 0x7FFFFFFF
                 time.sleep(delay)
                 delay = min(delay * 2, 60.0)
         raise AssertionError("ulaşılamaz")
@@ -188,6 +216,27 @@ Rules:
 - Prefer configurations likely to be non-dominated, or that test an unexplored part of the trade-off.
 - Infer the effect of each label only from the measured history.
 
+Respond with JSON: a short rationale (at most 40 words) and the configuration."""
+
+# Geri bildirimsiz ablation: adlar ve alan ipuçları aynı; ölçüm sonuçları (f1, f2, Pareto işareti) yok.
+# Değerlendirilmiş konfigürasyonlar yine listelenir: model tekrar önermesin, yalnızca ölçüm bilgisi eksilsin.
+BLIND_SYSTEM_PROMPT = """\
+You are the search policy of a multi-objective optimizer for PL/SQL rewrite configurations.
+You never write code. Each turn you choose exactly one configuration to evaluate next: one alternative
+per optimization site, taken only from that site's allowed alternatives.
+
+Objectives (both minimized, measured on a real Oracle database):
+  f1 = consistent gets (logical I/O, blocks read from the buffer cache)
+  f2 = delta PGA (net peak private session memory, bytes)
+The goal is to discover the Pareto front of (f1, f2) with as few evaluations as possible.
+Measurement results are NOT shown to you: you only see which configurations have already been evaluated.
+
+Rules:
+- A configuration equivalent to one already evaluated wastes your turn. Two configurations are equivalent
+  when they differ only in sites absorbed by a SET_BASED ancestor (see "absorbed_by").
+- Prefer configurations you expect to be non-dominated, covering different parts of the trade-off.
+- Rely on the site structure and your knowledge of the alternatives.
+{hints}
 Respond with JSON: a short rationale (at most 40 words) and the configuration."""
 
 
@@ -306,6 +355,9 @@ def build_prompt(ev: EvaluatorLike, feedback: list[str], labels: Labels | None =
     if history == "full":
         rows = [_row(k, e, labels, base, front) for k, e in enumerate(evaluated, start=1)]
         hist = ["## Evaluated configurations (in order)\n" + ("\n".join(rows) if rows else "(none)")]
+    elif history == "blind":
+        rows = [f"{k:>3} | {labels.show(e.config)}" for k, e in enumerate(evaluated, start=1)]
+        hist = ["## Already evaluated configurations (results hidden)\n" + ("\n".join(rows) if rows else "(none)")]
     elif history == "compact":
         keep = {e.digest for e in evaluated[:1]} | front | {e.digest for e in evaluated[-recent:]}
         rows = [_row(k, e, labels, base, front) for k, e in enumerate(evaluated, start=1) if e.digest in keep]
@@ -375,9 +427,10 @@ class LLMPolicy(SearchAlgorithm):
     max_retries: int = 2
     domain_hints: bool = True
     opaque_labels: bool = False             # ablation: alternatif adları ve alan bağlamı gizlenir
-    history: str = "full"                   # full | compact (büyük bütçeler için)
+    history: str = "full"                   # full | compact (büyük bütçeler) | blind (ablation: sonuçlar gizli)
     recent: int = 10                        # compact: gösterilen son değerlendirme sayısı
     proposals: int = 1                      # çağrı başına önerilen konfigürasyon sayısı (k)
+    project: bool = False                   # tekrar eden öneriyi denenmemiş komşusuna izdüşür (ek çağrı yok)
     max_steps: int = 200                    # bütçesiz (canlı) kullanımda üst sınır
 
     def _seed(self, step: int, attempt: int) -> int:
@@ -390,8 +443,12 @@ class LLMPolicy(SearchAlgorithm):
             raise ValueError("LLMPolicy bir LLM istemcisi gerektirir")
         space = ev.space
         labels = Labels(space, opaque=self.opaque_labels, seed=self.seed)
+        if self.opaque_labels and self.history == "blind":
+            raise ValueError("opak etiket + geri bildirimsiz geçmiş anlamsız (bilgi kalmaz)")
         if self.opaque_labels:
             system = OPAQUE_SYSTEM_PROMPT
+        elif self.history == "blind":
+            system = BLIND_SYSTEM_PROMPT.format(hints=DOMAIN_HINTS if self.domain_hints else "")
         else:
             system = SYSTEM_PROMPT.format(hints=DOMAIN_HINTS if self.domain_hints else "")
         schema = response_schema(ev, labels, self.proposals)
@@ -400,7 +457,7 @@ class LLMPolicy(SearchAlgorithm):
                           "temperature": self.temperature,
                           "domain_hints": self.domain_hints and not self.opaque_labels,
                           "opaque_labels": self.opaque_labels, "history": self.history, "recent": self.recent,
-                          "proposals": self.proposals, "retries": 0, "fallbacks": 0,
+                          "proposals": self.proposals, "project": self.project, "retries": 0, "fallbacks": 0,
                           "malformed": 0, "api_calls": 0, "cached_calls": 0, "prompt_chars": 0})
         if self.opaque_labels:
             self.meta["label_map"] = labels.to_label
@@ -414,8 +471,9 @@ class LLMPolicy(SearchAlgorithm):
             if len(seen) >= total:
                 return
             feedback: list[str] = []
-            queue: list[dict] = []
-            rationale, source = "", "llm"
+            queue: list[tuple[dict, str]] = []
+            rationale = ""
+            last_proposal: dict | None = None
             for attempt in range(self.max_retries + 1):
                 prompt = build_prompt(ev, feedback, labels, self.history, self.recent, self.proposals)
                 self.meta["prompt_chars"] += len(system) + len(prompt)
@@ -429,12 +487,22 @@ class LLMPolicy(SearchAlgorithm):
                     xs, rationale, problem, bad = _parse_many(reply.text, ev, labels)
                     self.meta["malformed"] += bad
                 if problem is None:
+                    last_proposal = xs[0]
                     keys: set[tuple] = set()
                     for x in xs:
                         key = tuple(space.canonicalize(x).values())
                         if key not in seen and key not in keys:
                             keys.add(key)
-                            queue.append(x)
+                            queue.append((x, "llm"))
+                        elif self.project:
+                            # İzdüşüm: tekrar eden öneri yerine onun denenmemiş bir komşusu (ek çağrı yok).
+                            near = [n for n in neighbors(space, x)
+                                    if tuple(n.values()) not in seen and tuple(n.values()) not in keys]
+                            if near:
+                                n = rng.choice(near)
+                                keys.add(tuple(n.values()))
+                                queue.append((n, "llm_projected"))
+                                self.meta["projected"] = self.meta.get("projected", 0) + 1
                     if queue:
                         break
                     if self.proposals == 1:
@@ -450,12 +518,18 @@ class LLMPolicy(SearchAlgorithm):
                     self.meta["retries"] += 1
             if not queue:                                        # LLM tekrar etmeye devam etti
                 self.meta["fallbacks"] += 1
-                source = "fallback"
                 unseen = [c for c in space.canonical_configs() if tuple(c.values()) not in seen]
                 if not unseen:
                     return
-                queue = [rng.choice(unseen)]
-            for rank, x in enumerate(queue):
+                # LLM yönlendirmesine yakın kal: son önerisinin denenmemiş bir komşusu; yoksa rastgele.
+                near = [n for n in (neighbors(space, last_proposal) if last_proposal else [])
+                        if tuple(n.values()) not in seen]
+                if near:
+                    queue = [(rng.choice(near), "fallback_neighbor")]
+                else:
+                    self.meta["fallback_random"] = self.meta.get("fallback_random", 0) + 1
+                    queue = [(rng.choice(unseen), "fallback_random")]
+            for rank, (x, source) in enumerate(queue):
                 if ev.budget_left is not None and ev.budget_left <= 0:
                     return
                 decisions.append({"step": step, "rank": rank, "config": dict(x), "source": source,

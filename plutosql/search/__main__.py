@@ -32,7 +32,8 @@ def cmd_compare(args) -> int:
     algorithms = {name: ALGORITHMS[name]() for name in args.algorithms if name != "llm"}
     llm_client = None
     if "llm" in args.algorithms:
-        inner = GeminiClient.from_env(args.llm_model, thinking_budget=args.llm_thinking_budget)
+        inner = GeminiClient.from_env(args.llm_model, thinking_budget=args.llm_thinking_budget,
+                                      thinking_level=args.llm_thinking_level)
         llm_client = CachedClient(inner, directory / "llm_cache" / f"{inner.model}.jsonl")
         algorithms["llm"] = _llm_policy(args, llm_client)
         thinking = "model varsayılanı" if args.llm_thinking_budget is None else args.llm_thinking_budget
@@ -50,10 +51,11 @@ def cmd_compare(args) -> int:
                                          "llm_model": llm_client.model if llm_client else None,
                                          "llm_temperature": args.llm_temperature,
                                          "llm_thinking_budget": args.llm_thinking_budget,
+                                         "llm_thinking_level": args.llm_thinking_level,
                                          "llm_domain_hints": not (args.llm_no_hints or args.llm_opaque_labels),
                                          "llm_opaque_labels": args.llm_opaque_labels,
                                          "llm_history": args.llm_history, "llm_recent": args.llm_recent,
-                                         "llm_proposals": args.llm_proposals,
+                                         "llm_proposals": args.llm_proposals, "llm_project": args.llm_project,
                                          "eps_normalized": gt.eps, "front": gt.front}}) + "\n")
         for r in runs:
             f.write(json.dumps(r.to_dict()) + "\n")
@@ -79,7 +81,7 @@ def cmd_compare(args) -> int:
 def _llm_policy(args, client) -> LLMPolicy:
     return LLMPolicy(client=client, temperature=args.llm_temperature, domain_hints=not args.llm_no_hints,
                      opaque_labels=args.llm_opaque_labels, history=args.llm_history, recent=args.llm_recent,
-                     proposals=args.llm_proposals)
+                     proposals=args.llm_proposals, project=args.llm_project)
 
 
 def cmd_estimate(args) -> int:
@@ -110,13 +112,17 @@ def main(argv: list[str] | None = None) -> int:
     common.add_argument("--llm-temperature", type=float, default=0.2)
     common.add_argument("--llm-thinking-budget", type=int, default=None,
                         help="düşünme token bütçesi (0: kapalı; verilmezse model varsayılanı)")
+    common.add_argument("--llm-thinking-level", choices=["MINIMAL", "LOW", "MEDIUM", "HIGH"], default=None,
+                        help="düşünme düzeyi (gemini-3.8-flash: LOW = düşünme kapalı; varsayılan MEDIUM)")
     common.add_argument("--llm-opaque-labels", action="store_true",
                         help="alternatif adlarını ve alan bağlamını gizle; yalnızca yapı + ölçümler (ablation)")
     common.add_argument("--llm-no-hints", action="store_true", help="alternatif anlamlarını istemden çıkar (ablation)")
-    common.add_argument("--llm-history", choices=["full", "compact"], default="full",
+    common.add_argument("--llm-history", choices=["full", "compact", "blind"], default="full",
                         help="compact: Pareto + son N + site etki özeti (büyük bütçeler için)")
     common.add_argument("--llm-recent", type=int, default=10, help="compact geçmişte gösterilen son değerlendirme")
     common.add_argument("--llm-proposals", type=int, default=1, help="çağrı başına önerilen konfigürasyon sayısı (k)")
+    common.add_argument("--llm-project", action="store_true",
+                        help="tekrar eden öneriyi denenmemiş komşusuna izdüşür (ek çağrı yapmaz)")
 
     parser = argparse.ArgumentParser(prog="python -m plutosql.search")
     sub = parser.add_subparsers(dest="command", required=True)
