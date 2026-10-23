@@ -8,6 +8,9 @@ dist/
 plutosql/transformer/generated/*.interp
 plutosql/transformer/generated/*.tokens
 plutosql/transformer/grammar/.antlr/
+# Türetilmiş özet verisi (python -m plutosql.analysis collect / expert-sensitivity ile yeniden üretilir)
+results/summary/runs.jsonl
+results/summary/expert_variants.jsonl
 # Markdown notları (yerel tutulur)
 *.md
 
